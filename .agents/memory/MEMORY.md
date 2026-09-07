@@ -1,0 +1,1 @@
+- [Auth and reporting integration](auth-and-reporting.md) — cookie sessions require credentialed generated fetches, and report forms submit category IDs rather than display labels.

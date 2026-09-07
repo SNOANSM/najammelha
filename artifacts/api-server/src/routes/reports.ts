@@ -70,46 +70,6 @@ async function seedDatabase() {
   }
   const existingCategories = await db.select({ id: categoriesTable.id }).from(categoriesTable).limit(1);
   if (existingCategories.length === 0) await db.insert(categoriesTable).values(categorySeed.map(([id, name, label, icon]) => ({ id, name, label, icon })));
-  const existingReports = await db.select({ id: reportsTable.id }).from(reportsTable).limit(1);
-  if (existingReports.length > 0) return;
-  const areas = [
-    ["حفرة كبيرة قرب دوار البدع", "السالمية", "roads", "resolved", "#b65639"],
-    ["عمود إنارة لا يعمل منذ أيام", "حولي", "lighting", "reviewing", "#274e48"],
-    ["تراكم مخلفات بجانب الحديقة", "صباح السالم", "cleanliness", "received", "#70866f"],
-    ["رصيف مكسور يعيق المشاة", "مدينة الكويت", "sidewalks", "referred", "#9c7355"],
-    ["مقاعد الحديقة بحاجة إلى صيانة", "الرميثية", "parks", "resolved", "#4f7b62"],
-    ["لوحة إعلانية عشوائية تشوه الواجهة", "الفروانية", "visual", "received", "#a13d36"],
-  ] as const;
-  const now = Date.now();
-  const reports = areas.map(([title, area, category, status, color], index) => ({
-    userId: DEMO_USER_ID,
-    authorName: index % 2 ? "سارة محمد" : "مستخدم تجريبي",
-    image: demoImage(categorySeed.find(([id]) => id === category)?.[1] ?? "بلاغ مجتمعي", color),
-    title,
-    description: "بلاغ تجريبي واضح يوضح مشكلة في مكان عام للمساعدة في اختبار المنصة.",
-    category,
-    categoryLabel: categorySeed.find(([id]) => id === category)?.[2] ?? "أخرى",
-    latitude: 29.33 + index * 0.06,
-    longitude: 48.02 + index * 0.04,
-    locationName: area,
-    status,
-    points: status === "resolved" ? 35 : 10,
-    supportCount: 8 + index * 5,
-    isDemo: true,
-    createdAt: new Date(now - index * 86400000),
-    updatedAt: new Date(now - index * 43200000),
-  }));
-  const inserted = await db.insert(reportsTable).values(reports).returning({ id: reportsTable.id });
-  await db.insert(notificationsTable).values([
-    { userId: DEMO_USER_ID, title: "تم تحديث حالة بلاغك", body: "بلاغك في منطقة السالمية تمت معالجته بنجاح.", read: false },
-    { userId: DEMO_USER_ID, title: "أهلًا بك في نجمّلها", body: "كل بلاغ منك يصنع فرقًا حقيقيًا في الكويت.", read: true },
-  ]);
-  if (inserted.length) {
-    await db.insert(pointsTable).values([
-      { userId: DEMO_USER_ID, reportId: inserted[0].id, amount: 20, reason: "تمت معالجة بلاغ" },
-      { userId: DEMO_USER_ID, reportId: inserted[0].id, amount: 10, reason: "إرسال بلاغ صالح" },
-    ]);
-  }
 }
 
 function ensureSeeded() {
@@ -131,9 +91,9 @@ router.get("/stats", async (_req, res) => {
   await ensureSeeded();
   const rows = await db.select().from(reportsTable);
   const data = GetStatsResponse.parse({
-    totalReports: 1240 + rows.length,
-    resolvedReports: 780 + rows.filter((r) => r.status === "resolved").length,
-    communityContributions: 3500 + rows.reduce((sum, r) => sum + r.supportCount, 0),
+    totalReports: rows.length,
+    resolvedReports: rows.filter((r) => r.status === "resolved").length,
+    communityContributions: rows.reduce((sum, r) => sum + r.supportCount, 0),
     activeAreas: new Set(rows.map((r) => r.locationName)).size,
   });
   res.json(data);

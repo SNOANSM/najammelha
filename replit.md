@@ -32,7 +32,7 @@
 
 - The web app is Arabic-first and RTL, with a restrained civic palette derived from Kuwaiti identity rather than a government portal aesthetic.
 - Report image uploads use Replit App Storage presigned URLs; PostgreSQL stores the returned object path with report metadata.
-- Development ships with clearly marked seeded demo data so the platform has meaningful content on first run.
+- Development seeds only the category catalog and the separate admin account; reports remain real user-created data.
 - Accounts use PostgreSQL-backed sessions and scrypt password hashes; the seeded admin area is separate from normal user accounts.
 - API contracts are OpenAPI-first and generated hooks are consumed by the React client.
 
