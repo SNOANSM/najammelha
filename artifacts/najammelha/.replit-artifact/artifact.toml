@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "نجمّلها"
+description = "منصة كويتية مجتمعية تساعد السكان على الإبلاغ عن مشاكل الأماكن العامة، متابعة معالجتها، وكسب نقاط للمساهمة في جعل الكويت أجمل."
+version = "1.0.0"
+id = "artifacts/najammelha"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26161
+
+[services.development]
+run = "pnpm --filter @workspace/najammelha run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/najammelha", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/najammelha/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26161"
+BASE_PATH = "/"

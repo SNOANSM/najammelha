@@ -1,6 +1,6 @@
-# [Project name]
+# نجمّلها
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+منصة كويتية مجتمعية للإبلاغ عن مشاكل الأماكن العامة، متابعة معالجتها، وكسب نقاط للمساهمة في جعل الكويت أجمل.
 
 ## Run & Operate
 
@@ -22,15 +22,23 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/najammelha` — the Arabic RTL React/Vite application and its civic visual system.
+- `artifacts/api-server` — Express API routes for reports, dashboard data, admin overview, and image uploads.
+- `lib/api-spec/openapi.yaml` — source of truth for the API contract and generated client hooks.
+- `lib/db/src/schema/najammelha.ts` — PostgreSQL/Drizzle tables for users, reports, categories, locations, points, and notifications.
+- `attached_assets` — source brand assets supplied for the product.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The web app is Arabic-first and RTL, with a restrained civic palette derived from Kuwaiti identity rather than a government portal aesthetic.
+- Report image uploads use Replit App Storage presigned URLs; PostgreSQL stores the returned object path with report metadata.
+- Development ships with clearly marked seeded demo data so the platform has meaningful content on first run.
+- The API uses a stable demo user identity until a managed auth provider is configured; the UI keeps the identity flow isolated for a later auth swap.
+- API contracts are OpenAPI-first and generated hooks are consumed by the React client.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Users can browse and filter community reports, support reports, explore an interactive Kuwait report map, submit a photo-backed report through a short flow, follow notifications and points in their dashboard, and manage report statuses from the admin overview.
 
 ## User preferences
 
@@ -38,7 +46,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Run `pnpm --filter @workspace/api-spec run codegen` after changing the OpenAPI contract.
+- The web build command needs workflow-provided `PORT` and `BASE_PATH`; use the managed web workflow for local preview.
+- Uploaded report images are private object paths and should be served through the API storage route.
 
 ## Pointers
 

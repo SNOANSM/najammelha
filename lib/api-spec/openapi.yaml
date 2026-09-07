@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API for Najammelha, a Kuwaiti community reporting platform
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: reports
+    description: Community reports
+  - name: dashboard
+    description: User and admin dashboards
+  - name: Storage
+    description: Object storage upload and serving endpoints.
 paths:
   /healthz:
     get:
@@ -24,7 +30,239 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /stats:
+    get:
+      operationId: getStats
+      tags: [dashboard]
+      summary: Get public platform statistics
+      responses:
+        "200":
+          description: Public statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformStats"
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [reports]
+      summary: List report categories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List public reports
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, received, reviewing, referred, resolved, closed]
+            default: all
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [latest, supported]
+            default: latest
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: mine
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Submit a new community report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Created report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "400":
+          description: Validation error
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get a report by id
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: Report not found
+    patch:
+      operationId: updateReport
+      tags: [reports]
+      summary: Update a report status or support count
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportUpdate"
+      responses:
+        "200":
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+  /reports/{id}/support:
+    post:
+      operationId: supportReport
+      tags: [reports]
+      summary: Support a report once per user
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      responses:
+        "200":
+          description: Supported report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get the current user's dashboard
+      responses:
+        "200":
+          description: User dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDashboard"
+  /admin/overview:
+    get:
+      operationId: getAdminOverview
+      tags: [dashboard]
+      summary: Get admin statistics and breakdowns
+      responses:
+        "200":
+          description: Admin overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOverview"
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid upload metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/public-objects/{filePath}:
+    get:
+      tags: [Storage]
+      operationId: getPublicObject
+      summary: Serve a public asset
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Public object
+          content:
+            "*/*":
+              schema: { type: string, format: binary }
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve a private uploaded object
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Object content
+          content:
+            "*/*":
+              schema: { type: string, format: binary }
+        "404":
+          description: Object not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 components:
+  parameters:
+    ReportId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +271,141 @@ components:
           type: string
       required:
         - status
+    Category:
+      type: object
+      required: [id, name, label, icon]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        label:
+          type: string
+        icon:
+          type: string
+    Report:
+      type: object
+      required: [id, userId, image, title, description, category, categoryLabel, latitude, longitude, locationName, status, statusLabel, points, supportCount, createdAt, updatedAt, isDemo]
+      properties:
+        id: { type: integer }
+        userId: { type: string }
+        authorName: { type: string }
+        image: { type: string }
+        title: { type: string }
+        description: { type: string }
+        category: { type: string }
+        categoryLabel: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        locationName: { type: string }
+        status:
+          type: string
+          enum: [received, reviewing, referred, resolved, closed]
+        statusLabel: { type: string }
+        points: { type: integer }
+        supportCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        isDemo: { type: boolean }
+    ReportInput:
+      type: object
+      required: [image, title, description, category, latitude, longitude, locationName]
+      properties:
+        image: { type: string, minLength: 1 }
+        title: { type: string, minLength: 3, maxLength: 120 }
+        description: { type: string, minLength: 10, maxLength: 800 }
+        category: { type: string }
+        latitude: { type: number, minimum: 28, maximum: 31 }
+        longitude: { type: number, minimum: 46, maximum: 49 }
+        locationName: { type: string, minLength: 2, maxLength: 120 }
+    ReportUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [received, reviewing, referred, resolved, closed]
+        supportCount:
+          type: integer
+          minimum: 0
+    PlatformStats:
+      type: object
+      required: [totalReports, resolvedReports, communityContributions, activeAreas]
+      properties:
+        totalReports: { type: integer }
+        resolvedReports: { type: integer }
+        communityContributions: { type: integer }
+        activeAreas: { type: integer }
+    UserDashboard:
+      type: object
+      required: [name, initials, points, reportsCount, resolvedCount, contributionRate, level, nextLevelPoints, reports, notifications]
+      properties:
+        name: { type: string }
+        initials: { type: string }
+        points: { type: integer }
+        reportsCount: { type: integer }
+        resolvedCount: { type: integer }
+        contributionRate: { type: integer }
+        level: { type: string }
+        nextLevelPoints: { type: integer }
+        reports:
+          type: array
+          items:
+            $ref: "#/components/schemas/Report"
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+    Notification:
+      type: object
+      required: [id, title, body, createdAt, read]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+        read: { type: boolean }
+    AdminOverview:
+      type: object
+      required: [totalReports, newReports, reviewingReports, resolvedReports, usersCount, totalPoints, byCategory, byArea]
+      properties:
+        totalReports: { type: integer }
+        newReports: { type: integer }
+        reviewingReports: { type: integer }
+        resolvedReports: { type: integer }
+        usersCount: { type: integer }
+        totalPoints: { type: integer }
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/BreakdownItem"
+        byArea:
+          type: array
+          items:
+            $ref: "#/components/schemas/BreakdownItem"
+    BreakdownItem:
+      type: object
+      required: [label, value]
+      properties:
+        label: { type: string }
+        value: { type: integer }
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name: { type: string, minLength: 1 }
+        size: { type: integer, minimum: 1 }
+        contentType: { type: string, minLength: 1 }
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath, metadata]
+      properties:
+        uploadURL: { type: string, format: uri }
+        objectPath: { type: string }
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
 
