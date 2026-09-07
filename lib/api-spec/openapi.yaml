@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Account authentication
   - name: reports
     description: Community reports
   - name: dashboard
@@ -42,6 +44,80 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlatformStats"
+  /auth/user:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the signed-in user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not signed in
+  /auth/register:
+    post:
+      operationId: registerAccount
+      tags: [auth]
+      summary: Create an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          description: Invalid account details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/login:
+    post:
+      operationId: loginAccount
+      tags: [auth]
+      summary: Sign in to an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Signed-in user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/logout:
+    post:
+      operationId: logoutAccount
+      tags: [auth]
+      summary: Sign out
+      responses:
+        "200":
+          description: Signed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutResponse"
   /categories:
     get:
       operationId: listCategories
@@ -271,6 +347,33 @@ components:
           type: string
       required:
         - status
+    AuthUser:
+      type: object
+      required: [id, name, email, isAdmin, points]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        isAdmin: { type: boolean }
+        points: { type: integer }
+    RegisterInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, maxLength: 128 }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1, maxLength: 128 }
+    LogoutResponse:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean }
     Category:
       type: object
       required: [id, name, label, icon]

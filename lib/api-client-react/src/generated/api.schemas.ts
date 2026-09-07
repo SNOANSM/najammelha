@@ -9,6 +9,41 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  isAdmin: boolean;
+  points: number;
+}
+
+export interface RegisterInput {
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  name: string;
+  email: string;
+  /**
+     * @minLength 8
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export interface LoginInput {
+  email: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  password: string;
+}
+
+export interface LogoutResponse {
+  success: boolean;
+}
+
 export interface Category {
   id: string;
   name: string;

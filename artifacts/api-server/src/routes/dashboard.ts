@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { GetDashboardResponse, GetAdminOverviewResponse } from "@workspace/api-zod";
 import { db, notificationsTable, reportsTable, usersTable } from "@workspace/db";
 
@@ -25,20 +25,20 @@ function toReport(report: typeof reportsTable.$inferSelect) {
 async function ensureSeeded() {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, DEMO_USER_ID)).limit(1);
   if (user) return;
-  await db.insert(usersTable).values({ id: DEMO_USER_ID, name: "أحمد العتيبي", email: "demo@najammelha.kw", points: 1250, isAdmin: true });
+  await db.insert(usersTable).values({ id: DEMO_USER_ID, name: "مستخدم تجريبي", email: "demo@najammelha.kw", points: 0, isAdmin: false });
 }
 
 router.get("/dashboard", async (req, res) => {
   await ensureSeeded();
-  const userId = req.header("x-demo-user") || DEMO_USER_ID;
+  const userId = req.authUser?.id || req.header("x-demo-user") || DEMO_USER_ID;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   const reports = await db.select().from(reportsTable).where(eq(reportsTable.userId, userId)).orderBy(desc(reportsTable.createdAt));
   const notifications = await db.select().from(notificationsTable).where(eq(notificationsTable.userId, userId)).orderBy(desc(notificationsTable.createdAt));
   const points = user?.points ?? 0;
   const level = points >= 1800 ? "صانع أثر" : points >= 1200 ? "مساهم مميز" : points >= 500 ? "مساهم نشط" : "مساهم جديد";
   res.json(GetDashboardResponse.parse({
-    name: user?.name ?? "أحمد العتيبي",
-    initials: (user?.name ?? "أحمد").slice(0, 2),
+    name: user?.name ?? "مستخدم نجمّلها",
+    initials: (user?.name ?? "مستخدم").slice(0, 2),
     points,
     reportsCount: reports.length,
     resolvedCount: reports.filter((report) => report.status === "resolved").length,
@@ -50,7 +50,11 @@ router.get("/dashboard", async (req, res) => {
   }));
 });
 
-router.get("/admin/overview", async (_req, res) => {
+router.get("/admin/overview", async (req, res) => {
+  if (!req.authUser?.isAdmin) {
+    res.status(403).json({ error: "هذه الصفحة مخصصة للإدارة." });
+    return;
+  }
   await ensureSeeded();
   const reports = await db.select().from(reportsTable);
   const users = await db.select().from(usersTable);

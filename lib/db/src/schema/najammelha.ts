@@ -6,6 +6,7 @@ export const usersTable = pgTable("najammelha_users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
+  passwordHash: text("password_hash"),
   points: integer("points").notNull().default(0),
   isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -61,6 +62,13 @@ export const notificationsTable = pgTable("najammelha_notifications", {
   title: text("title").notNull(),
   body: text("body").notNull(),
   read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const sessionsTable = pgTable("najammelha_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

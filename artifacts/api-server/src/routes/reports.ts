@@ -16,9 +16,12 @@ import {
   SupportReportResponse,
 } from "@workspace/api-zod";
 import { db, categoriesTable, notificationsTable, pointsTable, reportsTable, usersTable } from "@workspace/db";
+import { hashPassword } from "../lib/auth";
 
 const router: IRouter = Router();
 const DEMO_USER_ID = "demo-user";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@najammelha.kw";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Najammelha@2026";
 const statusLabels: Record<string, string> = {
   received: "تم استلام البلاغ",
   reviewing: "قيد المراجعة",
@@ -43,20 +46,32 @@ function demoImage(label: string, background: string) {
 }
 
 function getUserId(req: Request) {
-  return req.header("x-demo-user") || DEMO_USER_ID;
+  return req.authUser?.id || req.header("x-demo-user") || DEMO_USER_ID;
 }
 
 function getUserName(req: Request) {
-  return req.header("x-demo-user-name") || "أحمد العتيبي";
+  return req.authUser?.name || req.header("x-demo-user-name") || "مستخدم نجمّلها";
 }
 
 let seedPromise: Promise<void> | undefined;
 
 async function seedDatabase() {
-  const existing = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
-  if (existing.length > 0) return;
-  await db.insert(usersTable).values({ id: DEMO_USER_ID, name: "أحمد العتيبي", email: "demo@najammelha.kw", points: 1250, isAdmin: true });
-  await db.insert(categoriesTable).values(categorySeed.map(([id, name, label, icon]) => ({ id, name, label, icon })));
+  const [demoUser] = await db.select().from(usersTable).where(eq(usersTable.id, DEMO_USER_ID)).limit(1);
+  if (!demoUser) {
+    await db.insert(usersTable).values({ id: DEMO_USER_ID, name: "مستخدم تجريبي", email: "demo@najammelha.kw", points: 1250, isAdmin: false });
+  } else if (demoUser.name === "أحمد العتيبي") {
+    await db.update(usersTable).set({ name: "مستخدم تجريبي" }).where(eq(usersTable.id, DEMO_USER_ID));
+  }
+  const [admin] = await db.select().from(usersTable).where(eq(usersTable.email, ADMIN_EMAIL)).limit(1);
+  if (!admin) {
+    await db.insert(usersTable).values({ id: "admin-user", name: "إدارة نجمّلها", email: ADMIN_EMAIL, passwordHash: hashPassword(ADMIN_PASSWORD), points: 0, isAdmin: true });
+  } else if (!admin.passwordHash || !admin.isAdmin) {
+    await db.update(usersTable).set({ passwordHash: admin.passwordHash || hashPassword(ADMIN_PASSWORD), isAdmin: true }).where(eq(usersTable.id, admin.id));
+  }
+  const existingCategories = await db.select({ id: categoriesTable.id }).from(categoriesTable).limit(1);
+  if (existingCategories.length === 0) await db.insert(categoriesTable).values(categorySeed.map(([id, name, label, icon]) => ({ id, name, label, icon })));
+  const existingReports = await db.select({ id: reportsTable.id }).from(reportsTable).limit(1);
+  if (existingReports.length > 0) return;
   const areas = [
     ["حفرة كبيرة قرب دوار البدع", "السالمية", "roads", "resolved", "#b65639"],
     ["عمود إنارة لا يعمل منذ أيام", "حولي", "lighting", "reviewing", "#274e48"],
@@ -68,7 +83,7 @@ async function seedDatabase() {
   const now = Date.now();
   const reports = areas.map(([title, area, category, status, color], index) => ({
     userId: DEMO_USER_ID,
-    authorName: index % 2 ? "سارة محمد" : "أحمد العتيبي",
+    authorName: index % 2 ? "سارة محمد" : "مستخدم تجريبي",
     image: demoImage(categorySeed.find(([id]) => id === category)?.[1] ?? "بلاغ مجتمعي", color),
     title,
     description: "بلاغ تجريبي واضح يوضح مشكلة في مكان عام للمساعدة في اختبار المنصة.",
@@ -186,6 +201,10 @@ router.get("/reports/:id", async (req, res) => {
 });
 
 router.patch("/reports/:id", async (req, res) => {
+  if (!req.authUser?.isAdmin) {
+    res.status(403).json({ error: "تحديث البلاغات مخصص للإدارة." });
+    return;
+  }
   await ensureSeeded();
   const params = UpdateReportParams.safeParse({ id: Number(req.params.id) });
   const body = UpdateReportBody.safeParse(req.body);

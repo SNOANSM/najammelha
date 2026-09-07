@@ -33,12 +33,12 @@
 - The web app is Arabic-first and RTL, with a restrained civic palette derived from Kuwaiti identity rather than a government portal aesthetic.
 - Report image uploads use Replit App Storage presigned URLs; PostgreSQL stores the returned object path with report metadata.
 - Development ships with clearly marked seeded demo data so the platform has meaningful content on first run.
-- The API uses a stable demo user identity until a managed auth provider is configured; the UI keeps the identity flow isolated for a later auth swap.
+- Accounts use PostgreSQL-backed sessions and scrypt password hashes; the seeded admin area is separate from normal user accounts.
 - API contracts are OpenAPI-first and generated hooks are consumed by the React client.
 
 ## Product
 
-Users can browse and filter community reports, support reports, explore an interactive Kuwait report map, submit a photo-backed report through a short flow, follow notifications and points in their dashboard, and manage report statuses from the admin overview.
+Users can browse and filter community reports, support reports, submit a photo-backed report through a short flow, choose browser geolocation or enter a place name, follow notifications and points in their dashboard, and manage report statuses from the separate admin area.
 
 ## User preferences
 
@@ -49,6 +49,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 - Run `pnpm --filter @workspace/api-spec run codegen` after changing the OpenAPI contract.
 - The web build command needs workflow-provided `PORT` and `BASE_PATH`; use the managed web workflow for local preview.
 - Uploaded report images are private object paths and should be served through the API storage route.
+- The default development admin login is `admin@najammelha.kw` with password `Najammelha@2026`; set `ADMIN_EMAIL` and `ADMIN_PASSWORD` before public deployment.
 
 ## Pointers
 

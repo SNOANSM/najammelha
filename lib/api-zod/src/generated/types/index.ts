@@ -7,6 +7,7 @@
  */
 
 export * from './adminOverview';
+export * from './authUser';
 export * from './breakdownItem';
 export * from './category';
 export * from './errorEnvelope';
@@ -14,8 +15,11 @@ export * from './healthStatus';
 export * from './listReportsParams';
 export * from './listReportsSort';
 export * from './listReportsStatus';
+export * from './loginInput';
+export * from './logoutResponse';
 export * from './notification';
 export * from './platformStats';
+export * from './registerInput';
 export * from './report';
 export * from './reportInput';
 export * from './reportStatus';

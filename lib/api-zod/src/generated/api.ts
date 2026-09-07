@@ -29,6 +29,73 @@ export const GetStatsResponse = zod.object({
 
 
 /**
+ * @summary Get the signed-in user
+ */
+export const GetCurrentUserResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "isAdmin": zod.boolean(),
+  "points": zod.number().int()
+})
+
+
+/**
+ * @summary Create an account
+ */
+export const registerAccountBodyNameMin = 2;
+export const registerAccountBodyNameMax = 80;
+
+export const registerAccountBodyPasswordMin = 8;
+export const registerAccountBodyPasswordMax = 128;
+
+
+
+export const RegisterAccountBody = zod.object({
+  "name": zod.string().min(registerAccountBodyNameMin).max(registerAccountBodyNameMax),
+  "email": zod.string().email(),
+  "password": zod.string().min(registerAccountBodyPasswordMin).max(registerAccountBodyPasswordMax)
+})
+
+export const RegisterAccountResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "isAdmin": zod.boolean(),
+  "points": zod.number().int()
+})
+
+
+/**
+ * @summary Sign in to an account
+ */
+export const loginAccountBodyPasswordMax = 128;
+
+
+
+export const LoginAccountBody = zod.object({
+  "email": zod.string().email(),
+  "password": zod.string().min(1).max(loginAccountBodyPasswordMax)
+})
+
+export const LoginAccountResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string().email(),
+  "isAdmin": zod.boolean(),
+  "points": zod.number().int()
+})
+
+
+/**
+ * @summary Sign out
+ */
+export const LogoutAccountResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
  * @summary List report categories
  */
 export const ListCategoriesResponseItem = zod.object({
