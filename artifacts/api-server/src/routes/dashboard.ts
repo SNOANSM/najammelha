@@ -4,7 +4,6 @@ import { GetDashboardResponse, GetAdminOverviewResponse } from "@workspace/api-z
 import { db, notificationsTable, reportsTable, usersTable } from "@workspace/db";
 
 const router: IRouter = Router();
-const DEMO_USER_ID = "demo-user";
 const labels: Record<string, string> = {
   received: "تم استلام البلاغ",
   reviewing: "قيد المراجعة",
@@ -23,14 +22,15 @@ function toReport(report: typeof reportsTable.$inferSelect) {
 }
 
 async function ensureSeeded() {
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, DEMO_USER_ID)).limit(1);
-  if (user) return;
-  await db.insert(usersTable).values({ id: DEMO_USER_ID, name: "مستخدم تجريبي", email: "demo@najammelha.kw", points: 0, isAdmin: false });
+  return;
 }
 
 router.get("/dashboard", async (req, res) => {
-  await ensureSeeded();
-  const userId = req.authUser?.id || req.header("x-demo-user") || DEMO_USER_ID;
+  if (!req.authUser) {
+    res.status(401).json({ error: "يرجى تسجيل الدخول أولًا." });
+    return;
+  }
+  const userId = req.authUser.id;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   const reports = await db.select().from(reportsTable).where(eq(reportsTable.userId, userId)).orderBy(desc(reportsTable.createdAt));
   const notifications = await db.select().from(notificationsTable).where(eq(notificationsTable.userId, userId)).orderBy(desc(notificationsTable.createdAt));

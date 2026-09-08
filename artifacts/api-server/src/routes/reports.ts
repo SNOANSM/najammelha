@@ -19,7 +19,6 @@ import { db, categoriesTable, notificationsTable, pointsTable, reportsTable, use
 import { hashPassword } from "../lib/auth";
 
 const router: IRouter = Router();
-const DEMO_USER_ID = "demo-user";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@najammelha.kw";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Najammelha@2026";
 const statusLabels: Record<string, string> = {
@@ -46,22 +45,16 @@ function demoImage(label: string, background: string) {
 }
 
 function getUserId(req: Request) {
-  return req.authUser?.id || req.header("x-demo-user") || DEMO_USER_ID;
+  return req.authUser?.id || "";
 }
 
 function getUserName(req: Request) {
-  return req.authUser?.name || req.header("x-demo-user-name") || "مستخدم نجمّلها";
+  return req.authUser?.name || "مستخدم نجمّلها";
 }
 
 let seedPromise: Promise<void> | undefined;
 
 async function seedDatabase() {
-  const [demoUser] = await db.select().from(usersTable).where(eq(usersTable.id, DEMO_USER_ID)).limit(1);
-  if (!demoUser) {
-    await db.insert(usersTable).values({ id: DEMO_USER_ID, name: "مستخدم تجريبي", email: "demo@najammelha.kw", points: 1250, isAdmin: false });
-  } else if (demoUser.name === "أحمد العتيبي") {
-    await db.update(usersTable).set({ name: "مستخدم تجريبي" }).where(eq(usersTable.id, DEMO_USER_ID));
-  }
   const [admin] = await db.select().from(usersTable).where(eq(usersTable.email, ADMIN_EMAIL)).limit(1);
   if (!admin) {
     await db.insert(usersTable).values({ id: "admin-user", name: "إدارة نجمّلها", email: ADMIN_EMAIL, passwordHash: hashPassword(ADMIN_PASSWORD), points: 0, isAdmin: true });
@@ -113,6 +106,10 @@ router.get("/reports", async (req, res) => {
     return;
   }
   const { status = "all", category, search, sort = "latest", mine } = parsed.data;
+  if (mine && !req.authUser) {
+    res.status(401).json({ error: "يرجى تسجيل الدخول أولًا." });
+    return;
+  }
   const clauses = [];
   if (status !== "all") clauses.push(eq(reportsTable.status, status));
   if (category) clauses.push(eq(reportsTable.category, category));
@@ -123,6 +120,10 @@ router.get("/reports", async (req, res) => {
 });
 
 router.post("/reports", async (req, res) => {
+  if (!req.authUser) {
+    res.status(401).json({ error: "سجّل الدخول أولًا حتى تقدر ترسل البلاغ." });
+    return;
+  }
   await ensureSeeded();
   const parsed = CreateReportBody.safeParse(req.body);
   if (!parsed.success) {
@@ -132,16 +133,16 @@ router.post("/reports", async (req, res) => {
   const category = await db.select().from(categoriesTable).where(eq(categoriesTable.id, parsed.data.category)).limit(1);
   const [report] = await db.insert(reportsTable).values({
     ...parsed.data,
-    userId: getUserId(req),
-    authorName: getUserName(req),
+    userId: req.authUser.id,
+    authorName: req.authUser.name,
     categoryLabel: category[0]?.label ?? "أخرى",
     status: "received",
     points: 10,
     supportCount: 0,
     isDemo: false,
   }).returning();
-  await db.insert(pointsTable).values({ userId: getUserId(req), reportId: report.id, amount: 10, reason: "إرسال بلاغ صالح" });
-  await db.update(usersTable).set({ points: sql`${usersTable.points} + 10` }).where(eq(usersTable.id, getUserId(req)));
+  await db.insert(pointsTable).values({ userId: req.authUser.id, reportId: report.id, amount: 10, reason: "إرسال بلاغ صالح" });
+  await db.update(usersTable).set({ points: sql`${usersTable.points} + 10` }).where(eq(usersTable.id, req.authUser.id));
   res.status(201).json(CreateReportResponse.parse(toReport(report)));
 });
 

@@ -415,8 +415,8 @@ components:
       required: [image, title, description, category, latitude, longitude, locationName]
       properties:
         image: { type: string, minLength: 1 }
-        title: { type: string, minLength: 3, maxLength: 120 }
-        description: { type: string, minLength: 10, maxLength: 800 }
+        title: { type: string, minLength: 2, maxLength: 120 }
+        description: { type: string, minLength: 2, maxLength: 800 }
         category: { type: string }
         latitude: { type: number, minimum: 28, maximum: 31 }
         longitude: { type: number, minimum: 46, maximum: 49 }

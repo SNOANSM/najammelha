@@ -148,10 +148,10 @@ export const ListReportsResponse = zod.array(ListReportsResponseItem)
  * @summary Submit a new community report
  */
 
-export const createReportBodyTitleMin = 3;
+export const createReportBodyTitleMin = 2;
 export const createReportBodyTitleMax = 120;
 
-export const createReportBodyDescriptionMin = 10;
+export const createReportBodyDescriptionMin = 2;
 export const createReportBodyDescriptionMax = 800;
 
 export const createReportBodyLatitudeMin = 28;

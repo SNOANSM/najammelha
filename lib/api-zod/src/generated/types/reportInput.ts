@@ -10,12 +10,12 @@ export interface ReportInput {
   /** @minLength 1 */
   image: string;
   /**
-     * @minLength 3
+     * @minLength 2
      * @maxLength 120
      */
   title: string;
   /**
-     * @minLength 10
+     * @minLength 2
      * @maxLength 800
      */
   description: string;
