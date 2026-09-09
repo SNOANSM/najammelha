@@ -97,6 +97,13 @@ export const redemptionsTable = pgTable("najammelha_redemptions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const uploadsTable = pgTable("najammelha_uploads", {
+  id: text("id").primaryKey(),
+  contentType: text("content_type").notNull(),
+  data: text("data").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true });
 export const insertCategorySchema = createInsertSchema(categoriesTable);
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true, updatedAt: true });
