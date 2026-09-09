@@ -171,23 +171,101 @@ export interface AdminOverview {
   resolvedReports: number;
   usersCount: number;
   totalPoints: number;
+  totalRedemptions: number;
+  totalPointsRedeemed: number;
   byCategory: BreakdownItem[];
   byArea: BreakdownItem[];
 }
 
-export interface UploadUrlRequest {
-  /** @minLength 1 */
-  name: string;
-  /** @minimum 1 */
-  size: number;
-  /** @minLength 1 */
-  contentType: string;
+export interface Reward {
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  partnerName: string;
+  discountLabel: string;
+  costPoints: number;
+  stock: number | null;
+  isActive: boolean;
+  createdAt: string;
 }
 
-export interface UploadUrlResponse {
-  uploadURL: string;
+export interface RewardInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  title: string;
+  /**
+     * @minLength 2
+     * @maxLength 800
+     */
+  description: string;
+  /** @minLength 1 */
+  image: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  partnerName: string;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  discountLabel: string;
+  /** @minimum 1 */
+  costPoints: number;
+  /** @minimum 0 */
+  stock?: number | null;
+}
+
+export interface RewardUpdate {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  title?: string;
+  /**
+     * @minLength 2
+     * @maxLength 800
+     */
+  description?: string;
+  /** @minLength 1 */
+  image?: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  partnerName?: string;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  discountLabel?: string;
+  /** @minimum 1 */
+  costPoints?: number;
+  /** @minimum 0 */
+  stock?: number | null;
+  isActive?: boolean;
+}
+
+export interface Redemption {
+  id: number;
+  rewardId: number;
+  code: string;
+  costPoints: number;
+  rewardTitle: string;
+  partnerName: string;
+  discountLabel: string;
+  createdAt: string;
+}
+
+export interface ImageUpload {
+  file: Blob;
+}
+
+export interface ImageObject {
   objectPath: string;
-  metadata: UploadUrlRequest;
 }
 
 export interface ErrorEnvelope {

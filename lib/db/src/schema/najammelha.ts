@@ -72,12 +72,39 @@ export const sessionsTable = pgTable("najammelha_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const rewardsTable = pgTable("najammelha_rewards", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  image: text("image").notNull(),
+  partnerName: text("partner_name").notNull(),
+  discountLabel: text("discount_label").notNull(),
+  costPoints: integer("cost_points").notNull(),
+  stock: integer("stock"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const redemptionsTable = pgTable("najammelha_redemptions", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  rewardId: integer("reward_id").notNull(),
+  code: text("code").notNull().unique(),
+  costPoints: integer("cost_points").notNull(),
+  rewardTitle: text("reward_title").notNull(),
+  partnerName: text("partner_name").notNull(),
+  discountLabel: text("discount_label").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt: true });
 export const insertCategorySchema = createInsertSchema(categoriesTable);
 export const insertReportSchema = createInsertSchema(reportsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertLocationSchema = createInsertSchema(locationsTable).omit({ id: true });
 export const insertPointSchema = createInsertSchema(pointsTable).omit({ id: true, createdAt: true });
 export const insertNotificationSchema = createInsertSchema(notificationsTable).omit({ id: true, createdAt: true });
+export const insertRewardSchema = createInsertSchema(rewardsTable).omit({ id: true, createdAt: true });
+export const insertRedemptionSchema = createInsertSchema(redemptionsTable).omit({ id: true, createdAt: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
@@ -85,4 +112,8 @@ export type InsertReport = z.infer<typeof insertReportSchema>;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
 export type InsertPoint = z.infer<typeof insertPointSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type InsertReward = z.infer<typeof insertRewardSchema>;
+export type InsertRedemption = z.infer<typeof insertRedemptionSchema>;
 export type Report = typeof reportsTable.$inferSelect;
+export type Reward = typeof rewardsTable.$inferSelect;
+export type Redemption = typeof redemptionsTable.$inferSelect;

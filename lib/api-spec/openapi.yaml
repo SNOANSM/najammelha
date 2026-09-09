@@ -16,6 +16,8 @@ tags:
     description: Community reports
   - name: dashboard
     description: User and admin dashboards
+  - name: rewards
+    description: Points redemption store
   - name: Storage
     description: Object storage upload and serving endpoints.
 paths:
@@ -263,59 +265,184 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminOverview"
-  /storage/uploads/request-url:
+  /rewards:
+    get:
+      operationId: listRewards
+      tags: [rewards]
+      summary: List active rewards in the store
+      responses:
+        "200":
+          description: Rewards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reward"
+  /rewards/redemptions:
+    get:
+      operationId: listRedemptions
+      tags: [rewards]
+      summary: List the current user's redemption history
+      responses:
+        "200":
+          description: Redemptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Redemption"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /rewards/{id}/redeem:
     post:
-      tags: [Storage]
-      operationId: requestUploadUrl
-      summary: Request a presigned URL for file upload
+      operationId: redeemReward
+      tags: [rewards]
+      summary: Redeem a reward using points
+      parameters:
+        - $ref: "#/components/parameters/RewardId"
+      responses:
+        "200":
+          description: Redemption created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Redemption"
+        "400":
+          description: Insufficient points or out of stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Reward not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/rewards:
+    get:
+      operationId: adminListRewards
+      tags: [rewards]
+      summary: List all rewards including inactive ones (admin)
+      responses:
+        "200":
+          description: All rewards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reward"
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: adminCreateReward
+      tags: [rewards]
+      summary: Create a new reward (admin)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UploadUrlRequest"
+              $ref: "#/components/schemas/RewardInput"
       responses:
-        "200":
-          description: Presigned upload URL generated
+        "201":
+          description: Created reward
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UploadUrlResponse"
+                $ref: "#/components/schemas/Reward"
         "400":
-          description: Invalid upload metadata
+          description: Validation error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-  /storage/public-objects/{filePath}:
-    get:
-      tags: [Storage]
-      operationId: getPublicObject
-      summary: Serve a public asset
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/rewards/{id}:
+    patch:
+      operationId: adminUpdateReward
+      tags: [rewards]
+      summary: Update a reward (admin)
       parameters:
-        - name: filePath
-          in: path
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/RewardId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RewardUpdate"
       responses:
         "200":
-          description: Public object
+          description: Updated reward
           content:
-            "*/*":
-              schema: { type: string, format: binary }
-        "404":
-          description: File not found
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reward"
+        "403":
+          description: Admin access required
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-  /storage/objects/{objectPath}:
+        "404":
+          description: Reward not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/upload:
+    post:
+      tags: [Storage]
+      operationId: uploadImage
+      summary: Upload an image to blob storage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImageUpload"
+      responses:
+        "200":
+          description: Uploaded image path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageObject"
+        "400":
+          description: Invalid image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{key}:
     get:
       tags: [Storage]
       operationId: getStorageObject
-      summary: Serve a private uploaded object
+      summary: Serve an uploaded image
       parameters:
-        - name: objectPath
+        - name: key
           in: path
           required: true
           schema: { type: string }
@@ -334,6 +461,12 @@ paths:
 components:
   parameters:
     ReportId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    RewardId:
       name: id
       in: path
       required: true
@@ -469,7 +602,7 @@ components:
         read: { type: boolean }
     AdminOverview:
       type: object
-      required: [totalReports, newReports, reviewingReports, resolvedReports, usersCount, totalPoints, byCategory, byArea]
+      required: [totalReports, newReports, reviewingReports, resolvedReports, usersCount, totalPoints, totalRedemptions, totalPointsRedeemed, byCategory, byArea]
       properties:
         totalReports: { type: integer }
         newReports: { type: integer }
@@ -477,6 +610,8 @@ components:
         resolvedReports: { type: integer }
         usersCount: { type: integer }
         totalPoints: { type: integer }
+        totalRedemptions: { type: integer }
+        totalPointsRedeemed: { type: integer }
         byCategory:
           type: array
           items:
@@ -491,21 +626,66 @@ components:
       properties:
         label: { type: string }
         value: { type: integer }
-    UploadUrlRequest:
+    Reward:
       type: object
-      required: [name, size, contentType]
+      required: [id, title, description, image, partnerName, discountLabel, costPoints, stock, isActive, createdAt]
       properties:
-        name: { type: string, minLength: 1 }
-        size: { type: integer, minimum: 1 }
-        contentType: { type: string, minLength: 1 }
-    UploadUrlResponse:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        image: { type: string }
+        partnerName: { type: string }
+        discountLabel: { type: string }
+        costPoints: { type: integer }
+        stock: { type: integer, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    RewardInput:
       type: object
-      required: [uploadURL, objectPath, metadata]
+      required: [title, description, image, partnerName, discountLabel, costPoints]
       properties:
-        uploadURL: { type: string, format: uri }
+        title: { type: string, minLength: 2, maxLength: 120 }
+        description: { type: string, minLength: 2, maxLength: 800 }
+        image: { type: string, minLength: 1 }
+        partnerName: { type: string, minLength: 2, maxLength: 120 }
+        discountLabel: { type: string, minLength: 1, maxLength: 60 }
+        costPoints: { type: integer, minimum: 1 }
+        stock: { type: integer, minimum: 0, nullable: true }
+    RewardUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 2, maxLength: 120 }
+        description: { type: string, minLength: 2, maxLength: 800 }
+        image: { type: string, minLength: 1 }
+        partnerName: { type: string, minLength: 2, maxLength: 120 }
+        discountLabel: { type: string, minLength: 1, maxLength: 60 }
+        costPoints: { type: integer, minimum: 1 }
+        stock: { type: integer, minimum: 0, nullable: true }
+        isActive: { type: boolean }
+    Redemption:
+      type: object
+      required: [id, rewardId, code, costPoints, rewardTitle, partnerName, discountLabel, createdAt]
+      properties:
+        id: { type: integer }
+        rewardId: { type: integer }
+        code: { type: string }
+        costPoints: { type: integer }
+        rewardTitle: { type: string }
+        partnerName: { type: string }
+        discountLabel: { type: string }
+        createdAt: { type: string, format: date-time }
+    ImageUpload:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+    ImageObject:
+      type: object
+      required: [objectPath]
+      properties:
         objectPath: { type: string }
-        metadata:
-          $ref: "#/components/schemas/UploadUrlRequest"
     ErrorEnvelope:
       type: object
       required: [error]

@@ -2,6 +2,7 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
@@ -10,9 +11,12 @@
   },
   "private": true,
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.1"
+    "@netlify/functions": "^6.0.0",
+    "@replit/connectors-sdk": "^0.4.1",
+    "serverless-http": "^4.0.0"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "prettier": "^3.9.6",
     "typescript": "~5.9.3"
   }

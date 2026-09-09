@@ -345,6 +345,8 @@ export const GetAdminOverviewResponse = zod.object({
   "resolvedReports": zod.number().int(),
   "usersCount": zod.number().int(),
   "totalPoints": zod.number().int(),
+  "totalRedemptions": zod.number().int(),
+  "totalPointsRedeemed": zod.number().int(),
   "byCategory": zod.array(zod.object({
   "label": zod.string(),
   "value": zod.number().int()
@@ -357,50 +359,186 @@ export const GetAdminOverviewResponse = zod.object({
 
 
 /**
- * @summary Request a presigned URL for file upload
+ * @summary List active rewards in the store
  */
+export const ListRewardsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "image": zod.string(),
+  "partnerName": zod.string(),
+  "discountLabel": zod.string(),
+  "costPoints": zod.number().int(),
+  "stock": zod.number().int().nullable(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+export const ListRewardsResponse = zod.array(ListRewardsResponseItem)
 
 
+/**
+ * @summary List the current user's redemption history
+ */
+export const ListRedemptionsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "rewardId": zod.number().int(),
+  "code": zod.string(),
+  "costPoints": zod.number().int(),
+  "rewardTitle": zod.string(),
+  "partnerName": zod.string(),
+  "discountLabel": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListRedemptionsResponse = zod.array(ListRedemptionsResponseItem)
 
 
-
-export const RequestUploadUrlBody = zod.object({
-  "name": zod.string().min(1),
-  "size": zod.number().int().min(1),
-  "contentType": zod.string().min(1)
+/**
+ * @summary Redeem a reward using points
+ */
+export const RedeemRewardParams = zod.object({
+  "id": zod.coerce.number().int()
 })
 
-
-
-
-
-
-export const RequestUploadUrlResponse = zod.object({
-  "uploadURL": zod.string().url(),
-  "objectPath": zod.string(),
-  "metadata": zod.object({
-  "name": zod.string().min(1),
-  "size": zod.number().int().min(1),
-  "contentType": zod.string().min(1)
-})
+export const RedeemRewardResponse = zod.object({
+  "id": zod.number().int(),
+  "rewardId": zod.number().int(),
+  "code": zod.string(),
+  "costPoints": zod.number().int(),
+  "rewardTitle": zod.string(),
+  "partnerName": zod.string(),
+  "discountLabel": zod.string(),
+  "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary Serve a public asset
+ * @summary List all rewards including inactive ones (admin)
  */
-export const GetPublicObjectParams = zod.object({
-  "filePath": zod.coerce.string()
+export const AdminListRewardsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "image": zod.string(),
+  "partnerName": zod.string(),
+  "discountLabel": zod.string(),
+  "costPoints": zod.number().int(),
+  "stock": zod.number().int().nullable(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
 })
-
-export const GetPublicObjectResponse = zod.unknown()
+export const AdminListRewardsResponse = zod.array(AdminListRewardsResponseItem)
 
 
 /**
- * @summary Serve a private uploaded object
+ * @summary Create a new reward (admin)
+ */
+export const adminCreateRewardBodyTitleMin = 2;
+export const adminCreateRewardBodyTitleMax = 120;
+
+export const adminCreateRewardBodyDescriptionMin = 2;
+export const adminCreateRewardBodyDescriptionMax = 800;
+
+
+export const adminCreateRewardBodyPartnerNameMin = 2;
+export const adminCreateRewardBodyPartnerNameMax = 120;
+
+export const adminCreateRewardBodyDiscountLabelMax = 60;
+
+
+export const adminCreateRewardBodyStockMin = 0;
+
+
+
+export const AdminCreateRewardBody = zod.object({
+  "title": zod.string().min(adminCreateRewardBodyTitleMin).max(adminCreateRewardBodyTitleMax),
+  "description": zod.string().min(adminCreateRewardBodyDescriptionMin).max(adminCreateRewardBodyDescriptionMax),
+  "image": zod.string().min(1),
+  "partnerName": zod.string().min(adminCreateRewardBodyPartnerNameMin).max(adminCreateRewardBodyPartnerNameMax),
+  "discountLabel": zod.string().min(1).max(adminCreateRewardBodyDiscountLabelMax),
+  "costPoints": zod.number().int().min(1),
+  "stock": zod.number().int().min(adminCreateRewardBodyStockMin).nullish()
+})
+
+export const AdminCreateRewardResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "image": zod.string(),
+  "partnerName": zod.string(),
+  "discountLabel": zod.string(),
+  "costPoints": zod.number().int(),
+  "stock": zod.number().int().nullable(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a reward (admin)
+ */
+export const AdminUpdateRewardParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const adminUpdateRewardBodyTitleMin = 2;
+export const adminUpdateRewardBodyTitleMax = 120;
+
+export const adminUpdateRewardBodyDescriptionMin = 2;
+export const adminUpdateRewardBodyDescriptionMax = 800;
+
+
+export const adminUpdateRewardBodyPartnerNameMin = 2;
+export const adminUpdateRewardBodyPartnerNameMax = 120;
+
+export const adminUpdateRewardBodyDiscountLabelMax = 60;
+
+
+export const adminUpdateRewardBodyStockMin = 0;
+
+
+
+export const AdminUpdateRewardBody = zod.object({
+  "title": zod.string().min(adminUpdateRewardBodyTitleMin).max(adminUpdateRewardBodyTitleMax).optional(),
+  "description": zod.string().min(adminUpdateRewardBodyDescriptionMin).max(adminUpdateRewardBodyDescriptionMax).optional(),
+  "image": zod.string().min(1).optional(),
+  "partnerName": zod.string().min(adminUpdateRewardBodyPartnerNameMin).max(adminUpdateRewardBodyPartnerNameMax).optional(),
+  "discountLabel": zod.string().min(1).max(adminUpdateRewardBodyDiscountLabelMax).optional(),
+  "costPoints": zod.number().int().min(1).optional(),
+  "stock": zod.number().int().min(adminUpdateRewardBodyStockMin).nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const AdminUpdateRewardResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "image": zod.string(),
+  "partnerName": zod.string(),
+  "discountLabel": zod.string(),
+  "costPoints": zod.number().int(),
+  "stock": zod.number().int().nullable(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Upload an image to blob storage
+ */
+export const UploadImageBody = zod.object({
+  "file": zod.instanceof(File)
+})
+
+export const UploadImageResponse = zod.object({
+  "objectPath": zod.string()
+})
+
+
+/**
+ * @summary Serve an uploaded image
  */
 export const GetStorageObjectParams = zod.object({
-  "objectPath": zod.coerce.string()
+  "key": zod.coerce.string()
 })
 
 export const GetStorageObjectResponse = zod.unknown()

@@ -8,6 +8,9 @@ out-tsc
 .expo
 .expo-shared
 
+# Netlify
+.netlify
+
 # dependencies
 node_modules
 

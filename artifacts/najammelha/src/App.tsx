@@ -1,21 +1,28 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import {
   ArrowLeft, ArrowUpRight, Bell, Check, CircleAlert, CircleCheck,
-  ClipboardList, Clock3, Compass, FileText, Filter, Heart, Home, LayoutDashboard,
+  ClipboardList, Clock3, Compass, Copy, FileText, Filter, Gift, Heart, Home, LayoutDashboard,
   Loader2, LockKeyhole, MapPinned, Menu, Minus, Plus,
   Search, Send, ShieldCheck, Sparkles, Target, TrendingUp, Upload,
   UserRound, UsersRound, X, Zap, LogOut,
 } from 'lucide-react';
 import {
-  getGetAdminOverviewQueryKey, getGetCurrentUserQueryKey, getGetDashboardQueryKey, getListReportsQueryKey, useCreateReport, useGetAdminOverview,
-  useGetCurrentUser, useGetDashboard, useGetStats, useListCategories, useListReports, useRequestUploadUrl, useSupportReport,
+  getGetAdminOverviewQueryKey, getGetCurrentUserQueryKey, getGetDashboardQueryKey, getListReportsQueryKey,
+  getListRewardsQueryKey, getListRedemptionsQueryKey, getAdminListRewardsQueryKey,
+  useAdminCreateReward, useAdminListRewards, useAdminUpdateReward,
+  useCreateReport, useGetAdminOverview,
+  useGetCurrentUser, useGetDashboard, useGetStats, useListCategories, useListRedemptions, useListReports, useListRewards,
+  useRedeemReward, useSupportReport, useUploadImage,
   useUpdateReport,
 } from '@workspace/api-client-react';
-import type { AdminOverview, Category, Report, ReportInput } from '@workspace/api-client-react';
+import type { AdminOverview, Category, Redemption, Report, ReportInput, Reward, RewardInput } from '@workspace/api-client-react';
 import { Link, Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Switch as SwitchToggle } from '@/components/ui/switch';
 import logo from './logo.jpeg';
 
 const queryClient = new QueryClient();
@@ -56,6 +63,7 @@ function Shell({ children }: { children: ReactNode }) {
     { href: '/', label: 'الرئيسية', icon: Home },
     { href: '/reports', label: 'بلاغات المجتمع', icon: ClipboardList },
     { href: '/dashboard', label: 'مساحتي', icon: LayoutDashboard },
+    { href: '/store', label: 'المتجر', icon: Gift },
   ];
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -155,9 +163,9 @@ function MapPage() {
 }
 
 function NewReportPage() {
-  const [, setLocation] = useLocation(); const [step, setStep] = useState(1); const [done, setDone] = useState(false); const [image, setImage] = useState(''); const [uploadError, setUploadError] = useState(''); const [locationLoading, setLocationLoading] = useState(false); const [locationError, setLocationError] = useState(''); const [formError, setFormError] = useState(''); const [form, setForm] = useState<ReportInput>({ image: '', title: '', description: '', category: '', latitude: 29.3759, longitude: 47.9774, locationName: '' }); const catsQuery = useListCategories(); const cats: Category[] = (catsQuery.data || fallbackCategories).map((cat) => ({ ...cat, name: cat.id })); const create = useCreateReport(); const upload = useRequestUploadUrl(); const currentUser = useGetCurrentUser({ query: { queryKey: getGetCurrentUserQueryKey(), retry: false, staleTime: 60_000 } });
+  const [, setLocation] = useLocation(); const [step, setStep] = useState(1); const [done, setDone] = useState(false); const [image, setImage] = useState(''); const [uploadError, setUploadError] = useState(''); const [locationLoading, setLocationLoading] = useState(false); const [locationError, setLocationError] = useState(''); const [formError, setFormError] = useState(''); const [form, setForm] = useState<ReportInput>({ image: '', title: '', description: '', category: '', latitude: 29.3759, longitude: 47.9774, locationName: '' }); const catsQuery = useListCategories(); const cats: Category[] = (catsQuery.data || fallbackCategories).map((cat) => ({ ...cat, name: cat.id })); const create = useCreateReport(); const upload = useUploadImage(); const currentUser = useGetCurrentUser({ query: { queryKey: getGetCurrentUserQueryKey(), retry: false, staleTime: 60_000 } });
   const update = (key: keyof ReportInput, value: string | number) => setForm((prev) => ({ ...prev, [key]: value }));
-  const handleImage = async (file?: File) => { if (!file) return; setUploadError(''); if (!file.type.startsWith('image/') || file.size > 8_000_000) { setUploadError('اختر صورة بصيغة صحيحة وحجم أقل من 8 ميجابايت.'); return; } const reader = new FileReader(); reader.onload = () => setImage(String(reader.result)); reader.readAsDataURL(file); try { const signed = await upload.mutateAsync({ data: { name: file.name, size: file.size, contentType: file.type } }); const uploaded = await fetch(signed.uploadURL, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file }); if (!uploaded.ok) throw new Error('upload_failed'); update('image', signed.objectPath); } catch { setUploadError('تعذر رفع الصورة. حاول مرة أخرى.'); update('image', ''); } };
+  const handleImage = async (file?: File) => { if (!file) return; setUploadError(''); if (!file.type.startsWith('image/') || file.size > 8_000_000) { setUploadError('اختر صورة بصيغة صحيحة وحجم أقل من 8 ميجابايت.'); return; } const reader = new FileReader(); reader.onload = () => setImage(String(reader.result)); reader.readAsDataURL(file); try { const uploaded = await upload.mutateAsync({ data: { file } }); update('image', uploaded.objectPath); } catch { setUploadError('تعذر رفع الصورة. حاول مرة أخرى.'); update('image', ''); } };
   const useCurrentLocation = () => { if (!navigator.geolocation) { setLocationError('المتصفح لا يدعم تحديد الموقع. اكتب اسم المكان بدلًا من ذلك.'); return; } setLocationError(''); setLocationLoading(true); navigator.geolocation.getCurrentPosition((position) => { update('latitude', position.coords.latitude); update('longitude', position.coords.longitude); update('locationName', 'موقعي الحالي'); setLocationLoading(false); }, () => { setLocationLoading(false); setLocationError('لم نتمكن من الوصول لموقعك. اسمح بالوصول أو اكتب اسم المكان يدويًا.'); }, { enableHighAccuracy: true, timeout: 10000 }); };
   const next = () => { setFormError(''); if (step === 1 && (!form.category || !form.title || !form.description || !form.image || upload.isPending)) { setFormError('أكمل التصنيف والعنوان والوصف وأرفق الصورة قبل المتابعة.'); return; } if (step === 2 && !form.locationName) { setFormError('حدد موقع البلاغ أو اكتب اسم المكان.'); return; } if (step < 3) setStep(step + 1); else if (!currentUser.data) setLocation('/login'); else create.mutate({ data: form }, { onSuccess: () => setDone(true), onError: () => setFormError('تعذر إرسال البلاغ. تأكد من بقاء تسجيل الدخول فعالًا ثم حاول مرة ثانية.') }); };
   if (done) return <PageFrame title="وصل البلاغ" description="شكراً لأنك أخذت خطوة تخلي الكويت أجمل."><div className="mx-auto max-w-xl rounded-[2rem] border border-border bg-card p-8 text-center shadow-sm sm:p-12"><div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-secondary text-primary"><Check className="size-8" /></div><h2 className="mt-6 text-2xl font-bold">تم استلام بلاغك</h2><p className="mt-3 leading-7 text-muted-foreground">راح يمر على فريقنا للمراجعة، وتقدر تتابع حالته من البلاغات أو مساحتك.</p><div className="mt-7 flex flex-wrap justify-center gap-3"><Link href="/reports" data-testid="link-success-reports" className="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground">تصفح البلاغات</Link><Link href="/dashboard" data-testid="link-success-dashboard" className="rounded-xl border border-border px-5 py-3 text-sm font-semibold">روح لمساحتي</Link></div></div></PageFrame>;
@@ -174,12 +182,140 @@ function DashboardPage() {
   return <PageFrame eyebrow="مساحتي" title={`هلا ${data.name}`} description="هذا أثر ملاحظاتك على المكان حولك."><div className="grid gap-5 lg:grid-cols-[1fr_330px]"><div className="space-y-5"><div className="rounded-[2rem] bg-primary p-6 text-primary-foreground shadow-md sm:p-8"><div className="flex items-start justify-between"><div><p className="text-sm text-primary-foreground/65">رصيدك الحالي</p><div data-testid="text-dashboard-points" className="mt-2 font-mono-civic text-5xl font-bold text-secondary">{data.points}</div><p className="mt-2 text-xs text-primary-foreground/65">نقطة مجتمعية</p></div><div className="flex size-14 items-center justify-center rounded-2xl bg-secondary text-xl font-bold text-primary">{data.initials}</div></div><div className="mt-8 flex items-center justify-between text-xs"><span>المستوى: <strong className="text-secondary">{data.level}</strong></span><span>{data.nextLevelPoints - data.points > 0 ? `باقي ${data.nextLevelPoints - data.points} نقطة` : 'وصلت للمستوى التالي'}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-primary-foreground/15"><div className="h-full rounded-full bg-secondary transition-all" style={{ width: `${progress}%` }} /></div></div><div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><StatChip value={data.reportsCount} label="بلاغاتي" /><StatChip value={data.resolvedCount} label="تم حلّه" accent /><StatChip value={`${data.contributionRate}%`} label="معدل الأثر" /><StatChip value={data.notifications.length} label="تنبيهات" /></div><div className="rounded-3xl border border-border bg-card p-5 sm:p-6"><div className="mb-5 flex items-center justify-between"><h2 className="font-bold">بلاغاتي</h2><Link href="/report/new" data-testid="link-dashboard-add" className="flex items-center gap-1 text-xs font-semibold text-accent"><Plus className="size-4" />بلاغ جديد</Link></div>{data.reports.length === 0 ? <AsyncState type="empty" /> : <div className="space-y-2">{data.reports.map((r) => <button data-testid={`button-dashboard-report-${r.id}`} key={r.id} onClick={() => setSelected(r)} className="flex w-full items-center gap-3 rounded-2xl border border-transparent p-3 text-right hover:border-border hover:bg-muted"><div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary/45 text-primary"><FileText className="size-5" /></div><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{r.title}</div><div className="mt-1 text-xs text-muted-foreground">{r.locationName} · {fmtDate(r.createdAt)}</div></div><span className={cn('flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold', statusTone(r.status))}>{statusIcon(r.status)}{r.statusLabel}</span></button>)}</div>}</div></div><aside className="space-y-5"><div className="rounded-3xl border border-border bg-card p-5"><div className="flex items-center justify-between"><h2 className="font-bold">آخر التنبيهات</h2><Bell className="size-4 text-accent" /></div><div className="mt-4 space-y-1">{data.notifications.length === 0 ? <p className="py-6 text-sm text-muted-foreground">ما عندك تنبيهات جديدة.</p> : data.notifications.map((n) => <div data-testid={`notification-${n.id}`} key={n.id} className={cn('rounded-2xl p-3', n.read ? '' : 'bg-secondary/20')}><div className="flex gap-2"><span className="mt-1 size-2 shrink-0 rounded-full bg-accent" /><div><p className="text-sm font-semibold">{n.title}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{n.body}</p><p className="mt-2 text-[10px] text-muted-foreground">{fmtDate(n.createdAt)}</p></div></div></div>)}</div></div><div className="rounded-3xl border border-secondary/40 bg-secondary/20 p-5"><Target className="size-5 text-primary" /><h3 className="mt-4 font-bold">كل خطوة محسوبة</h3><p className="mt-2 text-sm leading-6 text-primary/70">صورة، وصف، أو دعم لبلاغ قريب منك. مشاركتك تخلي التغيير أوضح وأسرع.</p></div></aside></div>{selected && <ReportModal report={selected} close={() => setSelected(null)} support={(id) => support.mutate({ id }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getGetDashboardQueryKey() }); setSelected(null); } })} />}</PageFrame>;
 }
 
+function RewardCard({ reward, points, onRedeem, redeeming }: { reward: Reward; points: number; onRedeem: (id: number) => void; redeeming: boolean }) {
+  const canAfford = points >= reward.costPoints;
+  const outOfStock = reward.stock !== null && reward.stock !== undefined && reward.stock <= 0;
+  return <article data-testid={`card-reward-${reward.id}`} className="group overflow-hidden rounded-3xl border border-border bg-card shadow-xs transition-all hover:-translate-y-1 hover:shadow-md">
+    <div className="relative h-40 overflow-hidden bg-muted">{reward.image ? <img src={reward.image} alt={reward.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /> : <div className="civic-grid flex h-full items-center justify-center text-primary/30"><Gift className="size-10" /></div>}<span className="absolute right-3 top-3 rounded-full bg-accent px-2.5 py-1 text-[11px] font-semibold text-accent-foreground">{reward.discountLabel}</span></div>
+    <div className="p-5"><div className="mb-2 text-xs text-muted-foreground">{reward.partnerName}</div><h3 className="line-clamp-1 font-semibold">{reward.title}</h3><p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{reward.description}</p>
+      <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3">
+        <span className="flex items-center gap-1 text-xs font-semibold text-secondary-foreground"><Zap className="size-3.5" />{reward.costPoints} نقطة</span>
+        <button data-testid={`button-redeem-${reward.id}`} onClick={() => onRedeem(reward.id)} disabled={!canAfford || outOfStock || redeeming} className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">{redeeming ? <Loader2 className="size-3.5 animate-spin" /> : outOfStock ? 'نفدت الكمية' : canAfford ? 'استبدال' : `تحتاج ${reward.costPoints - points} نقطة إضافية`}</button>
+      </div>
+    </div>
+  </article>;
+}
+
+function RedemptionSuccessModal({ redemption, close }: { redemption: Redemption; close: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => { try { await navigator.clipboard.writeText(redemption.code); setCopied(true); } catch { /* clipboard unavailable */ } };
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary/35 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-2xl animate-rise">
+      <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-secondary text-primary"><Check className="size-8" /></div>
+      <h2 className="mt-6 text-xl font-bold">تم استبدال {redemption.rewardTitle}</h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">أرِ هذا الكود عند {redemption.partnerName} عشان تحصل على {redemption.discountLabel}.</p>
+      <div data-testid="text-redemption-code" className="mt-6 rounded-2xl border border-dashed border-primary/30 bg-muted/50 px-4 py-4 font-mono-civic text-2xl font-bold tracking-widest">{redemption.code}</div>
+      <button data-testid="button-copy-code" onClick={copy} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-primary hover:bg-muted"><Copy className="size-4" />{copied ? 'تم النسخ' : 'انسخ الكود'}</button>
+      <button data-testid="button-close-redemption" onClick={close} className="mt-3 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground">تم</button>
+    </div>
+  </div>;
+}
+
+function StorePage() {
+  const [, setLocation] = useLocation();
+  const currentUser = useGetCurrentUser({ query: { queryKey: getGetCurrentUserQueryKey(), retry: false, staleTime: 60_000 } });
+  const rewardsQuery = useListRewards({ query: { queryKey: getListRewardsQueryKey(), staleTime: 30_000 } });
+  const redemptionsQuery = useListRedemptions({ query: { queryKey: getListRedemptionsQueryKey(), enabled: !!currentUser.data, retry: false } });
+  const redeem = useRedeemReward();
+  const qc = useQueryClient();
+  const [success, setSuccess] = useState<Redemption | null>(null);
+  const rewards = rewardsQuery.data || [];
+  const points = currentUser.data?.points ?? 0;
+  const doRedeem = (id: number) => {
+    if (!currentUser.data) { setLocation('/login'); return; }
+    redeem.mutate({ id }, { onSuccess: (redemption) => {
+      setSuccess(redemption);
+      qc.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
+      qc.invalidateQueries({ queryKey: getListRewardsQueryKey() });
+      qc.invalidateQueries({ queryKey: getListRedemptionsQueryKey() });
+    } });
+  };
+  return <PageFrame eyebrow="المتجر" title="استبدل نقاطك بخصومات" description="كل نقطة جمعتها من مساهماتك تقدر تصرفها عند شركائنا.">
+    <div className="mb-8 flex flex-wrap items-center gap-3">
+      <StatChip value={points} label="رصيدك الحالي" accent />
+      {!currentUser.isLoading && !currentUser.data && <Link href="/login" data-testid="link-store-login" className="rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-primary hover:bg-muted">سجّل دخولك عشان تقدر تستبدل</Link>}
+    </div>
+    {rewardsQuery.isLoading ? <AsyncState type="loading" /> : rewardsQuery.isError ? <AsyncState type="error" retry={() => rewardsQuery.refetch()} /> : rewards.length === 0 ? <div className="rounded-3xl border border-dashed border-border bg-card px-6 py-16 text-center"><Gift className="mx-auto mb-4 size-10 text-primary/40" /><h3 className="font-semibold">لا توجد جوائز متاحة حالياً</h3><p className="mt-2 text-sm text-muted-foreground">ترقّب إضافات جديدة قريباً.</p></div> : <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{rewards.map((reward) => <RewardCard key={reward.id} reward={reward} points={points} onRedeem={doRedeem} redeeming={redeem.isPending} />)}</div>}
+    {currentUser.data && (redemptionsQuery.data?.length ?? 0) > 0 && <div className="mt-12 rounded-3xl border border-border bg-card p-5 sm:p-6"><h2 className="mb-4 font-bold">سجل استبدالاتي</h2><div className="space-y-2">{redemptionsQuery.data!.map((r) => <div key={r.id} data-testid={`redemption-${r.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 p-3"><div><div className="text-sm font-semibold">{r.rewardTitle}</div><div className="mt-1 text-xs text-muted-foreground">{r.partnerName} · {fmtDate(r.createdAt)}</div></div><span className="font-mono-civic rounded-lg bg-muted px-3 py-1.5 text-xs font-bold tracking-widest">{r.code}</span></div>)}</div></div>}
+    {success && <RedemptionSuccessModal redemption={success} close={() => setSuccess(null)} />}
+  </PageFrame>;
+}
+
+function RewardFormDialog({ open, onOpenChange, initial, onSubmit, submitting }: { open: boolean; onOpenChange: (open: boolean) => void; initial?: Reward; onSubmit: (data: RewardInput) => void; submitting: boolean }) {
+  const emptyForm: RewardInput = { title: '', description: '', image: '', partnerName: '', discountLabel: '', costPoints: 100, stock: undefined };
+  const [form, setForm] = useState<RewardInput>(initial ? { title: initial.title, description: initial.description, image: initial.image, partnerName: initial.partnerName, discountLabel: initial.discountLabel, costPoints: initial.costPoints, stock: initial.stock ?? undefined } : emptyForm);
+  useEffect(() => { setForm(initial ? { title: initial.title, description: initial.description, image: initial.image, partnerName: initial.partnerName, discountLabel: initial.discountLabel, costPoints: initial.costPoints, stock: initial.stock ?? undefined } : emptyForm); }, [initial, open]);
+  const upload = useUploadImage();
+  const [uploadError, setUploadError] = useState('');
+  const update = (key: keyof RewardInput, value: string | number | undefined) => setForm((prev) => ({ ...prev, [key]: value }));
+  const handleImage = async (file?: File) => {
+    if (!file) return;
+    setUploadError('');
+    if (!file.type.startsWith('image/') || file.size > 8_000_000) {
+      setUploadError('اختر صورة بصيغة صحيحة وحجم أقل من 8 ميجابايت.');
+      return;
+    }
+    try {
+      const uploaded = await upload.mutateAsync({ data: { file } });
+      update('image', uploaded.objectPath);
+    } catch { setUploadError('تعذر رفع الصورة. حاول مرة أخرى.'); }
+  };
+  const valid = form.title && form.description && form.partnerName && form.discountLabel && form.image && form.costPoints > 0;
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent data-testid="dialog-reward-form">
+      <DialogHeader><DialogTitle>{initial ? 'تعديل الجائزة' : 'إضافة جائزة جديدة'}</DialogTitle><DialogDescription>عبّي بيانات الجائزة اللي راح تظهر بالمتجر.</DialogDescription></DialogHeader>
+      <div className="space-y-4">
+        <label className="block text-sm font-semibold">العنوان<input data-testid="input-reward-title" value={form.title} onChange={(e) => update('title', e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" /></label>
+        <label className="block text-sm font-semibold">الوصف<textarea data-testid="input-reward-description" value={form.description} onChange={(e) => update('description', e.target.value)} rows={3} className="mt-2 w-full resize-none rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary" /></label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm font-semibold">الشريك<input data-testid="input-reward-partner" value={form.partnerName} onChange={(e) => update('partnerName', e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" /></label>
+          <label className="block text-sm font-semibold">نص الخصم<input data-testid="input-reward-discount" value={form.discountLabel} onChange={(e) => update('discountLabel', e.target.value)} placeholder="مثلاً: 15% خصم" className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" /></label>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm font-semibold">التكلفة (نقاط)<input data-testid="input-reward-cost" type="number" min={1} value={form.costPoints} onChange={(e) => update('costPoints', Number(e.target.value))} className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" /></label>
+          <label className="block text-sm font-semibold">الكمية <span className="font-normal text-muted-foreground">(فاضي = غير محدودة)</span><input data-testid="input-reward-stock" type="number" min={0} value={form.stock ?? ''} onChange={(e) => update('stock', e.target.value === '' ? undefined : Number(e.target.value))} className="mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" /></label>
+        </div>
+        <label className="block text-sm font-semibold">صورة الجائزة<label data-testid="input-reward-image" className="mt-2 flex min-h-24 cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed border-primary/30 bg-muted/40 text-sm text-muted-foreground hover:bg-muted">{form.image ? <img src={form.image} alt="معاينة" className="h-20 w-full rounded-lg object-cover" /> : <><Upload className="size-5" />اضغط لإرفاق صورة<input type="file" accept="image/*" className="hidden" onChange={(e) => handleImage(e.target.files?.[0])} /></>}{upload.isPending && <Loader2 className="size-4 animate-spin" />}</label></label>
+        {uploadError && <p className="text-sm text-accent">{uploadError}</p>}
+      </div>
+      <DialogFooter><button data-testid="button-reward-submit" disabled={submitting || upload.isPending || !valid} onClick={() => onSubmit(form)} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">{submitting ? <Loader2 className="size-4 animate-spin" /> : null}{initial ? 'حفظ التعديلات' : 'إضافة الجائزة'}</button></DialogFooter>
+    </DialogContent>
+  </Dialog>;
+}
+
+function AdminRewardsPanel({ overview }: { overview: AdminOverview }) {
+  const rewardsQuery = useAdminListRewards({ query: { queryKey: getAdminListRewardsQueryKey() } });
+  const create = useAdminCreateReward();
+  const update = useAdminUpdateReward();
+  const qc = useQueryClient();
+  const [dialogState, setDialogState] = useState<{ open: boolean; reward?: Reward }>({ open: false });
+  const rewards = rewardsQuery.data || [];
+  const refresh = () => qc.invalidateQueries({ queryKey: getAdminListRewardsQueryKey() });
+  const submit = (data: RewardInput) => {
+    if (dialogState.reward) {
+      update.mutate({ id: dialogState.reward.id, data }, { onSuccess: () => { refresh(); setDialogState({ open: false }); } });
+    } else {
+      create.mutate({ data }, { onSuccess: () => { refresh(); setDialogState({ open: false }); } });
+    }
+  };
+  const toggleActive = (reward: Reward) => update.mutate({ id: reward.id, data: { isActive: !reward.isActive } }, { onSuccess: refresh });
+  return <div>
+    <div className="grid gap-3 sm:grid-cols-2"><StatChip value={overview.totalRedemptions} label="عمليات الاستبدال" accent /><StatChip value={overview.totalPointsRedeemed} label="نقاط مستبدلة" /></div>
+    <div className="mt-5 rounded-3xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between"><h2 className="font-bold">جوائز المتجر</h2><button data-testid="button-add-reward" onClick={() => setDialogState({ open: true })} className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-accent-foreground"><Plus className="size-4" />إضافة جائزة</button></div>
+      <div className="mt-5 overflow-x-auto">{rewardsQuery.isLoading ? <AsyncState type="loading" /> : rewards.length === 0 ? <p className="py-12 text-center text-sm text-muted-foreground">ما فيه جوائز بعد. أضف أول جائزة للمتجر.</p> : <table className="w-full min-w-[650px] text-right text-sm"><thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="pb-3 font-medium">الجائزة</th><th className="pb-3 font-medium">التكلفة</th><th className="pb-3 font-medium">الكمية</th><th className="pb-3 font-medium">مفعّلة</th><th className="pb-3 font-medium">تعديل</th></tr></thead><tbody>{rewards.map((reward) => <tr data-testid={`row-admin-reward-${reward.id}`} key={reward.id} className="border-b border-border/60 last:border-0"><td className="py-4"><div className="font-semibold">{reward.title}</div><div className="mt-1 text-xs text-muted-foreground">{reward.partnerName} · {reward.discountLabel}</div></td><td className="py-4 font-mono-civic text-xs">{reward.costPoints}</td><td className="py-4 font-mono-civic text-xs">{reward.stock ?? 'غير محدودة'}</td><td className="py-4"><SwitchToggle data-testid={`switch-reward-active-${reward.id}`} checked={reward.isActive} onCheckedChange={() => toggleActive(reward)} disabled={update.isPending} /></td><td className="py-4"><button data-testid={`button-edit-reward-${reward.id}`} onClick={() => setDialogState({ open: true, reward })} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-primary hover:bg-muted">تعديل</button></td></tr>)}</tbody></table>}</div>
+    </div>
+    <RewardFormDialog open={dialogState.open} onOpenChange={(open) => setDialogState((prev) => ({ ...prev, open }))} initial={dialogState.reward} onSubmit={submit} submitting={create.isPending || update.isPending} />
+  </div>;
+}
+
 function AdminPage() {
   const overview = useGetAdminOverview(); const reports = useListReports({ sort: 'latest' }); const [statusFilter, setStatusFilter] = useState('all'); const update = useUpdateReport(); const qc = useQueryClient(); const data = overview.data as AdminOverview | undefined; const rows = (reports.data || []).filter((r) => statusFilter === 'all' || r.status === statusFilter);
   const setStatus = (id: number, status: 'received' | 'reviewing' | 'referred' | 'resolved' | 'closed') => update.mutate({ id, data: { status } }, { onSuccess: () => { qc.invalidateQueries({ queryKey: getListReportsQueryKey({ sort: 'latest' }) }); qc.invalidateQueries({ queryKey: getGetAdminOverviewQueryKey() }); } });
   if (overview.isLoading) return <PageFrame eyebrow="لوحة الإدارة" title="صورة المدينة" description="مؤشرات البلاغات والمناطق النشطة."><AsyncState type="loading" /></PageFrame>;
   if (overview.isError || !data) return <PageFrame eyebrow="لوحة الإدارة" title="صورة المدينة" description="مؤشرات البلاغات والمناطق النشطة."><div className="rounded-3xl border border-border bg-card px-6 py-12 text-center"><ShieldCheck className="mx-auto mb-3 size-8 text-accent" /><h3 className="font-semibold">تحتاج صلاحية الإدارة</h3><p className="mt-2 text-sm text-muted-foreground">سجّل الدخول بحساب الإدارة حتى تفتح هذه الصفحة.</p><Link href="/login" className="mt-5 inline-flex rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">تسجيل الدخول</Link></div></PageFrame>;
-  return <PageFrame eyebrow="لوحة الإدارة" title="صورة المدينة" description="إدارة البلاغات ومتابعة سرعة الاستجابة من مكان واحد."><div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6"><StatChip value={data.totalReports} label="إجمالي البلاغات" /><StatChip value={data.newReports} label="جديدة" accent /><StatChip value={data.reviewingReports} label="قيد المراجعة" /><StatChip value={data.resolvedReports} label="تم حلّه" accent /><StatChip value={data.usersCount} label="مستخدمون" /><StatChip value={data.totalPoints} label="إجمالي النقاط" /></div><div className="mt-5 grid gap-5 lg:grid-cols-[1fr_320px]"><div className="rounded-3xl border border-border bg-card p-5"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><h2 className="font-bold">طابور البلاغات</h2><div className="flex gap-1 overflow-auto">{statuses.map((s) => <button data-testid={`button-admin-filter-${s.id}`} key={s.id} onClick={() => setStatusFilter(s.id)} className={cn('whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px]', statusFilter === s.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{s.label}</button>)}</div></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[650px] text-right text-sm"><thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="pb-3 font-medium">البلاغ</th><th className="pb-3 font-medium">التصنيف</th><th className="pb-3 font-medium">الحالة</th><th className="pb-3 font-medium">الإجراء</th></tr></thead><tbody>{rows.map((r) => <tr data-testid={`row-admin-report-${r.id}`} key={r.id} className="border-b border-border/60 last:border-0"><td className="py-4"><div className="font-semibold">{r.title}</div><div className="mt-1 text-xs text-muted-foreground">{r.locationName} · #{r.id}</div></td><td className="py-4 text-xs text-muted-foreground">{r.categoryLabel}</td><td className="py-4"><span className={cn('rounded-full px-2.5 py-1 text-[10px] font-semibold', statusTone(r.status))}>{r.statusLabel}</span></td><td className="py-4"><select data-testid={`select-admin-status-${r.id}`} value={r.status} disabled={update.isPending} onChange={(e) => setStatus(r.id, e.target.value as 'received' | 'reviewing' | 'referred' | 'resolved' | 'closed')} className="rounded-lg border border-input bg-background px-2 py-1.5 text-xs"><option value="received">استلمناها</option><option value="reviewing">قيد المراجعة</option><option value="referred">أُحيلت</option><option value="resolved">تم الحل</option><option value="closed">مغلقة</option></select></td></tr>)}</tbody></table>{rows.length === 0 && <p className="py-12 text-center text-sm text-muted-foreground">لا توجد بلاغات بهذا الفلتر.</p>}</div></div><aside className="space-y-5"><div className="rounded-3xl border border-border bg-card p-5"><h2 className="font-bold">حسب التصنيف</h2><div className="mt-5 space-y-4">{data.byCategory.map((item, i) => <div data-testid={`admin-category-${i}`} key={item.label}><div className="mb-2 flex justify-between text-xs"><span>{item.label}</span><span className="font-mono-civic text-muted-foreground">{item.value}</span></div><div className="h-2 rounded-full bg-muted"><div className={cn('h-full rounded-full', i % 3 === 0 ? 'bg-primary' : i % 3 === 1 ? 'bg-secondary' : 'bg-accent')} style={{ width: `${Math.min(100, (item.value / Math.max(1, data.totalReports)) * 100)}%` }} /></div></div>)}</div></div><div className="rounded-3xl border border-border bg-primary p-5 text-primary-foreground"><UsersRound className="size-5 text-secondary" /><div className="mt-4 text-3xl font-bold font-mono-civic">{data.usersCount}</div><p className="mt-1 text-xs text-primary-foreground/65">شخص يساهم في تحسين الكويت</p></div></aside></div></PageFrame>;
+  return <PageFrame eyebrow="لوحة الإدارة" title="صورة المدينة" description="إدارة البلاغات ومتابعة سرعة الاستجابة من مكان واحد."><Tabs defaultValue="reports"><TabsList><TabsTrigger data-testid="tab-admin-reports" value="reports">البلاغات</TabsTrigger><TabsTrigger data-testid="tab-admin-store" value="store">المتجر</TabsTrigger></TabsList><TabsContent value="reports"><div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6"><StatChip value={data.totalReports} label="إجمالي البلاغات" /><StatChip value={data.newReports} label="جديدة" accent /><StatChip value={data.reviewingReports} label="قيد المراجعة" /><StatChip value={data.resolvedReports} label="تم حلّه" accent /><StatChip value={data.usersCount} label="مستخدمون" /><StatChip value={data.totalPoints} label="إجمالي النقاط" /></div><div className="mt-5 grid gap-5 lg:grid-cols-[1fr_320px]"><div className="rounded-3xl border border-border bg-card p-5"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><h2 className="font-bold">طابور البلاغات</h2><div className="flex gap-1 overflow-auto">{statuses.map((s) => <button data-testid={`button-admin-filter-${s.id}`} key={s.id} onClick={() => setStatusFilter(s.id)} className={cn('whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px]', statusFilter === s.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{s.label}</button>)}</div></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[650px] text-right text-sm"><thead className="border-b border-border text-xs text-muted-foreground"><tr><th className="pb-3 font-medium">البلاغ</th><th className="pb-3 font-medium">التصنيف</th><th className="pb-3 font-medium">الحالة</th><th className="pb-3 font-medium">الإجراء</th></tr></thead><tbody>{rows.map((r) => <tr data-testid={`row-admin-report-${r.id}`} key={r.id} className="border-b border-border/60 last:border-0"><td className="py-4"><div className="font-semibold">{r.title}</div><div className="mt-1 text-xs text-muted-foreground">{r.locationName} · #{r.id}</div></td><td className="py-4 text-xs text-muted-foreground">{r.categoryLabel}</td><td className="py-4"><span className={cn('rounded-full px-2.5 py-1 text-[10px] font-semibold', statusTone(r.status))}>{r.statusLabel}</span></td><td className="py-4"><select data-testid={`select-admin-status-${r.id}`} value={r.status} disabled={update.isPending} onChange={(e) => setStatus(r.id, e.target.value as 'received' | 'reviewing' | 'referred' | 'resolved' | 'closed')} className="rounded-lg border border-input bg-background px-2 py-1.5 text-xs"><option value="received">استلمناها</option><option value="reviewing">قيد المراجعة</option><option value="referred">أُحيلت</option><option value="resolved">تم الحل</option><option value="closed">مغلقة</option></select></td></tr>)}</tbody></table>{rows.length === 0 && <p className="py-12 text-center text-sm text-muted-foreground">لا توجد بلاغات بهذا الفلتر.</p>}</div></div><aside className="space-y-5"><div className="rounded-3xl border border-border bg-card p-5"><h2 className="font-bold">حسب التصنيف</h2><div className="mt-5 space-y-4">{data.byCategory.map((item, i) => <div data-testid={`admin-category-${i}`} key={item.label}><div className="mb-2 flex justify-between text-xs"><span>{item.label}</span><span className="font-mono-civic text-muted-foreground">{item.value}</span></div><div className="h-2 rounded-full bg-muted"><div className={cn('h-full rounded-full', i % 3 === 0 ? 'bg-primary' : i % 3 === 1 ? 'bg-secondary' : 'bg-accent')} style={{ width: `${Math.min(100, (item.value / Math.max(1, data.totalReports)) * 100)}%` }} /></div></div>)}</div></div><div className="rounded-3xl border border-border bg-primary p-5 text-primary-foreground"><UsersRound className="size-5 text-secondary" /><div className="mt-4 text-3xl font-bold font-mono-civic">{data.usersCount}</div><p className="mt-1 text-xs text-primary-foreground/65">شخص يساهم في تحسين الكويت</p></div></aside></div></TabsContent><TabsContent value="store"><AdminRewardsPanel overview={data} /></TabsContent></Tabs></PageFrame>;
 }
 
 function LoginPage() {
@@ -219,7 +355,7 @@ function PageFrame({ eyebrow, title, description, children }: { eyebrow?: string
 
 function Router() {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}><Switch><Route path="/" component={HomePage} /><Route path="/reports" component={ReportsPage} /><Route path="/report/new" component={NewReportPage} /><Route path="/dashboard" component={DashboardPage} /><Route path="/admin" component={AdminPage} /><Route path="/login" component={LoginPage} /><Route component={() => <PageFrame title="الصفحة غير موجودة" description="الرابط الذي تبحث عنه غير متاح."><Link href="/" data-testid="link-not-found-home" className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground">العودة للرئيسية <ArrowLeft className="size-4" /></Link></PageFrame>} /></Switch></ErrorBoundary>;
+  return <ErrorBoundary resetKey={location}><Switch><Route path="/" component={HomePage} /><Route path="/reports" component={ReportsPage} /><Route path="/report/new" component={NewReportPage} /><Route path="/dashboard" component={DashboardPage} /><Route path="/store" component={StorePage} /><Route path="/admin" component={AdminPage} /><Route path="/login" component={LoginPage} /><Route component={() => <PageFrame title="الصفحة غير موجودة" description="الرابط الذي تبحث عنه غير متاح."><Link href="/" data-testid="link-not-found-home" className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground">العودة للرئيسية <ArrowLeft className="size-4" /></Link></PageFrame>} /></Switch></ErrorBoundary>;
 }
 
 function AppContent() {

@@ -14,6 +14,8 @@ export interface AdminOverview {
   resolvedReports: number;
   usersCount: number;
   totalPoints: number;
+  totalRedemptions: number;
+  totalPointsRedeemed: number;
   byCategory: BreakdownItem[];
   byArea: BreakdownItem[];
 }

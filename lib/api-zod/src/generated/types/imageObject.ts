@@ -5,10 +5,7 @@
  * API for Najammelha, a Kuwaiti community reporting platform
  * OpenAPI spec version: 0.1.0
  */
-import type { UploadUrlRequest } from './uploadUrlRequest';
 
-export interface UploadUrlResponse {
-  uploadURL: string;
+export interface ImageObject {
   objectPath: string;
-  metadata: UploadUrlRequest;
 }

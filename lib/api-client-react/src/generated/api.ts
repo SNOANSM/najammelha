@@ -25,16 +25,20 @@ import type {
   Category,
   ErrorEnvelope,
   HealthStatus,
+  ImageObject,
+  ImageUpload,
   ListReportsParams,
   LoginInput,
   LogoutResponse,
   PlatformStats,
+  Redemption,
   RegisterInput,
   Report,
   ReportInput,
   ReportUpdate,
-  UploadUrlRequest,
-  UploadUrlResponse,
+  Reward,
+  RewardInput,
+  RewardUpdate,
   UserDashboard
 } from './api.schemas';
 
@@ -1116,91 +1120,20 @@ export function useGetAdminOverview<TData = Awaited<ReturnType<typeof getAdminOv
 
 
 
-export const getRequestUploadUrlUrl = () => {
+export const getListRewardsUrl = () => {
 
 
 
 
-  return `/api/storage/uploads/request-url`
+  return `/api/rewards`
 }
 
 /**
- * @summary Request a presigned URL for file upload
+ * @summary List active rewards in the store
  */
-export const requestUploadUrl = async (uploadUrlRequest: UploadUrlRequest, options?: Parameters<typeof customFetch>[1]): Promise<UploadUrlResponse> => {
+export const listRewards = async ( options?: Parameters<typeof customFetch>[1]): Promise<Reward[]> => {
 
-  return customFetch<UploadUrlResponse>(getRequestUploadUrlUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(uploadUrlRequest)
-  }
-);}
-
-
-
-
-
-export const getRequestUploadUrlMutationOptions = <TError = ErrorType<ErrorEnvelope>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlRequest>}, TContext> => {
-
-const mutationKey = ['requestUploadUrl'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestUploadUrl>>, {data: BodyType<UploadUrlRequest>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  requestUploadUrl(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RequestUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof requestUploadUrl>>>
-    export type RequestUploadUrlMutationBody = BodyType<UploadUrlRequest>
-    export type RequestUploadUrlMutationError = ErrorType<ErrorEnvelope>
-
-    /**
- * @summary Request a presigned URL for file upload
- */
-export const useRequestUploadUrl = <TError = ErrorType<ErrorEnvelope>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<UploadUrlRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof requestUploadUrl>>,
-        TError,
-        {data: BodyType<UploadUrlRequest>},
-        TContext
-      > => {
-      return useMutation(getRequestUploadUrlMutationOptions(options));
-    }
-
-export const getGetPublicObjectUrl = (filePath: string,) => {
-
-
-
-
-  return `/api/storage/public-objects/${filePath}`
-}
-
-/**
- * @summary Serve a public asset
- */
-export const getPublicObject = async (filePath: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
-
-  return customFetch<Blob>(getGetPublicObjectUrl(filePath),
+  return customFetch<Reward[]>(getListRewardsUrl(),
   {
     ...options,
     method: 'GET'
@@ -1213,45 +1146,45 @@ export const getPublicObject = async (filePath: string, options?: Parameters<typ
 
 
 
-export const getGetPublicObjectQueryKey = (filePath: string,) => {
+export const getListRewardsQueryKey = () => {
     return [
-    `/api/storage/public-objects/${filePath}`
+    `/api/rewards`
     ] as const;
     }
 
 
-export const getGetPublicObjectQueryOptions = <TData = Awaited<ReturnType<typeof getPublicObject>>, TError = ErrorType<ErrorEnvelope>>(filePath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRewardsQueryOptions = <TData = Awaited<ReturnType<typeof listRewards>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetPublicObjectQueryKey(filePath);
+  const queryKey =  queryOptions?.queryKey ?? getListRewardsQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicObject>>> = ({ signal }) => getPublicObject(filePath, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRewards>>> = ({ signal }) => listRewards({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: filePath !== null && filePath !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicObject>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRewards>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetPublicObjectQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicObject>>>
-export type GetPublicObjectQueryError = ErrorType<ErrorEnvelope>
+export type ListRewardsQueryResult = NonNullable<Awaited<ReturnType<typeof listRewards>>>
+export type ListRewardsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Serve a public asset
+ * @summary List active rewards in the store
  */
 
-export function useGetPublicObject<TData = Awaited<ReturnType<typeof getPublicObject>>, TError = ErrorType<ErrorEnvelope>>(
- filePath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useListRewards<TData = Awaited<ReturnType<typeof listRewards>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetPublicObjectQueryOptions(filePath,options)
+  const queryOptions = getListRewardsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1264,20 +1197,20 @@ export function useGetPublicObject<TData = Awaited<ReturnType<typeof getPublicOb
 
 
 
-export const getGetStorageObjectUrl = (objectPath: string,) => {
+export const getListRedemptionsUrl = () => {
 
 
 
 
-  return `/api/storage/objects/${objectPath}`
+  return `/api/rewards/redemptions`
 }
 
 /**
- * @summary Serve a private uploaded object
+ * @summary List the current user's redemption history
  */
-export const getStorageObject = async (objectPath: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+export const listRedemptions = async ( options?: Parameters<typeof customFetch>[1]): Promise<Redemption[]> => {
 
-  return customFetch<Blob>(getGetStorageObjectUrl(objectPath),
+  return customFetch<Redemption[]>(getListRedemptionsUrl(),
   {
     ...options,
     method: 'GET'
@@ -1290,29 +1223,470 @@ export const getStorageObject = async (objectPath: string, options?: Parameters<
 
 
 
-export const getGetStorageObjectQueryKey = (objectPath: string,) => {
+export const getListRedemptionsQueryKey = () => {
     return [
-    `/api/storage/objects/${objectPath}`
+    `/api/rewards/redemptions`
     ] as const;
     }
 
 
-export const getGetStorageObjectQueryOptions = <TData = Awaited<ReturnType<typeof getStorageObject>>, TError = ErrorType<ErrorEnvelope>>(objectPath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListRedemptionsQueryOptions = <TData = Awaited<ReturnType<typeof listRedemptions>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRedemptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetStorageObjectQueryKey(objectPath);
+  const queryKey =  queryOptions?.queryKey ?? getListRedemptionsQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStorageObject>>> = ({ signal }) => getStorageObject(objectPath, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRedemptions>>> = ({ signal }) => listRedemptions({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: objectPath !== null && objectPath !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRedemptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRedemptionsQueryResult = NonNullable<Awaited<ReturnType<typeof listRedemptions>>>
+export type ListRedemptionsQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary List the current user's redemption history
+ */
+
+export function useListRedemptions<TData = Awaited<ReturnType<typeof listRedemptions>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRedemptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRedemptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRedeemRewardUrl = (id: number,) => {
+
+
+
+
+  return `/api/rewards/${id}/redeem`
+}
+
+/**
+ * @summary Redeem a reward using points
+ */
+export const redeemReward = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Redemption> => {
+
+  return customFetch<Redemption>(getRedeemRewardUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRedeemRewardMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReward>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redeemReward>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['redeemReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemReward>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  redeemReward(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedeemRewardMutationResult = NonNullable<Awaited<ReturnType<typeof redeemReward>>>
+
+    export type RedeemRewardMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Redeem a reward using points
+ */
+export const useRedeemReward = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReward>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof redeemReward>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRedeemRewardMutationOptions(options));
+    }
+
+export const getAdminListRewardsUrl = () => {
+
+
+
+
+  return `/api/admin/rewards`
+}
+
+/**
+ * @summary List all rewards including inactive ones (admin)
+ */
+export const adminListRewards = async ( options?: Parameters<typeof customFetch>[1]): Promise<Reward[]> => {
+
+  return customFetch<Reward[]>(getAdminListRewardsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListRewardsQueryKey = () => {
+    return [
+    `/api/admin/rewards`
+    ] as const;
+    }
+
+
+export const getAdminListRewardsQueryOptions = <TData = Awaited<ReturnType<typeof adminListRewards>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListRewardsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListRewards>>> = ({ signal }) => adminListRewards({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListRewards>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListRewardsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListRewards>>>
+export type AdminListRewardsQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary List all rewards including inactive ones (admin)
+ */
+
+export function useAdminListRewards<TData = Awaited<ReturnType<typeof adminListRewards>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListRewards>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListRewardsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminCreateRewardUrl = () => {
+
+
+
+
+  return `/api/admin/rewards`
+}
+
+/**
+ * @summary Create a new reward (admin)
+ */
+export const adminCreateReward = async (rewardInput: RewardInput, options?: Parameters<typeof customFetch>[1]): Promise<Reward> => {
+
+  return customFetch<Reward>(getAdminCreateRewardUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(rewardInput)
+  }
+);}
+
+
+
+
+
+export const getAdminCreateRewardMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateReward>>, TError,{data: BodyType<RewardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateReward>>, TError,{data: BodyType<RewardInput>}, TContext> => {
+
+const mutationKey = ['adminCreateReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateReward>>, {data: BodyType<RewardInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminCreateReward(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateRewardMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateReward>>>
+    export type AdminCreateRewardMutationBody = BodyType<RewardInput>
+    export type AdminCreateRewardMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Create a new reward (admin)
+ */
+export const useAdminCreateReward = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateReward>>, TError,{data: BodyType<RewardInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateReward>>,
+        TError,
+        {data: BodyType<RewardInput>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateRewardMutationOptions(options));
+    }
+
+export const getAdminUpdateRewardUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/rewards/${id}`
+}
+
+/**
+ * @summary Update a reward (admin)
+ */
+export const adminUpdateReward = async (id: number,
+    rewardUpdate: RewardUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Reward> => {
+
+  return customFetch<Reward>(getAdminUpdateRewardUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(rewardUpdate)
+  }
+);}
+
+
+
+
+
+export const getAdminUpdateRewardMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateReward>>, TError,{id: number;data: BodyType<RewardUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateReward>>, TError,{id: number;data: BodyType<RewardUpdate>}, TContext> => {
+
+const mutationKey = ['adminUpdateReward'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateReward>>, {id: number;data: BodyType<RewardUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminUpdateReward(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateRewardMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateReward>>>
+    export type AdminUpdateRewardMutationBody = BodyType<RewardUpdate>
+    export type AdminUpdateRewardMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Update a reward (admin)
+ */
+export const useAdminUpdateReward = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateReward>>, TError,{id: number;data: BodyType<RewardUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateReward>>,
+        TError,
+        {id: number;data: BodyType<RewardUpdate>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateRewardMutationOptions(options));
+    }
+
+export const getUploadImageUrl = () => {
+
+
+
+
+  return `/api/storage/upload`
+}
+
+/**
+ * @summary Upload an image to blob storage
+ */
+export const uploadImage = async (imageUpload: ImageUpload, options?: Parameters<typeof customFetch>[1]): Promise<ImageObject> => {
+    const formData = new FormData();
+formData.append(`file`, imageUpload.file);
+
+  return customFetch<ImageObject>(getUploadImageUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadImageMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadImage>>, TError,{data: BodyType<ImageUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadImage>>, TError,{data: BodyType<ImageUpload>}, TContext> => {
+
+const mutationKey = ['uploadImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadImage>>, {data: BodyType<ImageUpload>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadImage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadImageMutationResult = NonNullable<Awaited<ReturnType<typeof uploadImage>>>
+    export type UploadImageMutationBody = BodyType<ImageUpload>
+    export type UploadImageMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Upload an image to blob storage
+ */
+export const useUploadImage = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadImage>>, TError,{data: BodyType<ImageUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadImage>>,
+        TError,
+        {data: BodyType<ImageUpload>},
+        TContext
+      > => {
+      return useMutation(getUploadImageMutationOptions(options));
+    }
+
+export const getGetStorageObjectUrl = (key: string,) => {
+
+
+
+
+  return `/api/storage/objects/${key}`
+}
+
+/**
+ * @summary Serve an uploaded image
+ */
+export const getStorageObject = async (key: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetStorageObjectUrl(key),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStorageObjectQueryKey = (key: string,) => {
+    return [
+    `/api/storage/objects/${key}`
+    ] as const;
+    }
+
+
+export const getGetStorageObjectQueryOptions = <TData = Awaited<ReturnType<typeof getStorageObject>>, TError = ErrorType<ErrorEnvelope>>(key: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStorageObjectQueryKey(key);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStorageObject>>> = ({ signal }) => getStorageObject(key, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: key !== null && key !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData> & { queryKey: QueryKey }
 }
 
 export type GetStorageObjectQueryResult = NonNullable<Awaited<ReturnType<typeof getStorageObject>>>
@@ -1320,15 +1694,15 @@ export type GetStorageObjectQueryError = ErrorType<ErrorEnvelope>
 
 
 /**
- * @summary Serve a private uploaded object
+ * @summary Serve an uploaded image
  */
 
 export function useGetStorageObject<TData = Awaited<ReturnType<typeof getStorageObject>>, TError = ErrorType<ErrorEnvelope>>(
- objectPath: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ key: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStorageObject>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetStorageObjectQueryOptions(objectPath,options)
+  const queryOptions = getGetStorageObjectQueryOptions(key,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

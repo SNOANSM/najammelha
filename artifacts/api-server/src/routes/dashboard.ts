@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { desc, eq } from "drizzle-orm";
 import { GetDashboardResponse, GetAdminOverviewResponse } from "@workspace/api-zod";
-import { db, notificationsTable, reportsTable, usersTable } from "@workspace/db";
+import { db, notificationsTable, redemptionsTable, reportsTable, usersTable } from "@workspace/db";
 
 const router: IRouter = Router();
 const labels: Record<string, string> = {
@@ -58,6 +58,7 @@ router.get("/admin/overview", async (req, res) => {
   await ensureSeeded();
   const reports = await db.select().from(reportsTable);
   const users = await db.select().from(usersTable);
+  const redemptions = await db.select().from(redemptionsTable);
   const byCategory = new Map<string, number>();
   const byArea = new Map<string, number>();
   for (const report of reports) {
@@ -71,6 +72,8 @@ router.get("/admin/overview", async (req, res) => {
     resolvedReports: reports.filter((report) => report.status === "resolved").length,
     usersCount: users.length,
     totalPoints: users.reduce((sum, user) => sum + user.points, 0),
+    totalRedemptions: redemptions.length,
+    totalPointsRedeemed: redemptions.reduce((sum, redemption) => sum + redemption.costPoints, 0),
     byCategory: Array.from(byCategory, ([label, value]) => ({ label, value })),
     byArea: Array.from(byArea, ([label, value]) => ({ label, value })),
   }));
