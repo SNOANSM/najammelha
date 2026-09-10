@@ -15,7 +15,7 @@ import {
   UpdateReportResponse,
   SupportReportResponse,
 } from "@workspace/api-zod";
-import { db, categoriesTable, notificationsTable, pointsTable, reportsTable, usersTable } from "@workspace/db";
+import { db, categoriesTable, locationsTable, notificationsTable, pointsTable, reportsTable, usersTable } from "@workspace/db";
 import { hashPassword } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -192,6 +192,25 @@ router.patch("/reports/:id", async (req, res) => {
     }
   }
   res.json(UpdateReportResponse.parse(toReport(report)));
+});
+
+router.delete("/reports/:id", async (req, res) => {
+  if (!req.authUser?.isAdmin) {
+    res.status(403).json({ error: "حذف البلاغات مخصص للإدارة." });
+    return;
+  }
+  const params = UpdateReportParams.safeParse({ id: Number(req.params.id) });
+  if (!params.success) {
+    res.status(400).json({ error: "رقم البلاغ غير صالح." });
+    return;
+  }
+  const [report] = await db.delete(reportsTable).where(eq(reportsTable.id, params.data.id)).returning();
+  if (!report) {
+    res.status(404).json({ error: "البلاغ غير موجود." });
+    return;
+  }
+  await db.delete(locationsTable).where(eq(locationsTable.reportId, params.data.id));
+  res.status(204).send();
 });
 
 router.post("/reports/:id/support", async (req, res) => {

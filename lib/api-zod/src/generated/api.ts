@@ -265,6 +265,16 @@ export const UpdateReportResponse = zod.object({
 
 
 /**
+ * @summary Delete a report (admin)
+ */
+export const DeleteReportParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteReportResponse = zod.void()
+
+
+/**
  * @summary Support a report once per user
  */
 export const SupportReportParams = zod.object({
