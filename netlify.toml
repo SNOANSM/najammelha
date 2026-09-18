@@ -1,5 +1,5 @@
 [build]
-  command = "pnpm install --frozen-lockfile && pnpm --filter @workspace/api-spec run codegen && pnpm --filter @workspace/najammelha run build"
+  command = "pnpm install --frozen-lockfile && pnpm --filter @workspace/api-spec run codegen && pnpm --filter @workspace/api-server run build:netlify && pnpm --filter @workspace/najammelha run build"
   publish = "artifacts/najammelha/dist/public"
   functions = "netlify/functions"
 
