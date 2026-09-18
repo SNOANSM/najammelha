@@ -62,7 +62,14 @@ let seedPromise: Promise<void> | undefined;
 async function seedDatabase() {
   const [admin] = await db.select().from(usersTable).where(eq(usersTable.email, ADMIN_EMAIL)).limit(1);
   if (!admin) {
-    await db.insert(usersTable).values({ id: "admin-user", name: "إدارة نجمّلها", email: ADMIN_EMAIL, passwordHash: hashPassword(ADMIN_PASSWORD), points: 0, isAdmin: true });
+    // The seeded admin row may already exist under an older ADMIN_EMAIL. Re-point
+    // it instead of inserting a duplicate id, which used to fail every request.
+    const [seeded] = await db.select().from(usersTable).where(eq(usersTable.id, "admin-user")).limit(1);
+    if (seeded) {
+      await db.update(usersTable).set({ email: ADMIN_EMAIL, passwordHash: hashPassword(ADMIN_PASSWORD), isAdmin: true }).where(eq(usersTable.id, seeded.id));
+    } else {
+      await db.insert(usersTable).values({ id: "admin-user", name: "إدارة نجمّلها", email: ADMIN_EMAIL, passwordHash: hashPassword(ADMIN_PASSWORD), points: 0, isAdmin: true });
+    }
   } else if (!admin.passwordHash || !admin.isAdmin) {
     await db.update(usersTable).set({ passwordHash: admin.passwordHash || hashPassword(ADMIN_PASSWORD), isAdmin: true }).where(eq(usersTable.id, admin.id));
   }
@@ -71,7 +78,11 @@ async function seedDatabase() {
 }
 
 function ensureSeeded() {
-  seedPromise ??= seedDatabase();
+  // A failed seed must not be cached, or every later request would fail too.
+  seedPromise ??= seedDatabase().catch((error) => {
+    seedPromise = undefined;
+    throw error;
+  });
   return seedPromise;
 }
 
