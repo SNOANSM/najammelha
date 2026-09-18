@@ -1,5 +1,6 @@
 import serverless from "serverless-http";
 import type { Config, Context } from "@netlify/functions";
+import app from "../../artifacts/api-server/src/app";
 
 // Modern (Request/Response) function, not the classic Lambda-style handler:
 // Netlify only exposes the database connection (NETLIFY_DB_URL) through the
@@ -16,22 +17,12 @@ type LambdaHandler = (event: unknown, context: unknown) => Promise<{
   isBase64Encoded?: boolean;
 }>;
 
-let handlerPromise: Promise<LambdaHandler> | undefined;
-
-function getHandler() {
-  // Loaded lazily so the database module is evaluated inside a request, where
-  // Netlify.env is available.
-  handlerPromise ??= import("../../artifacts/api-server/src/app").then(
-    ({ default: app }) =>
-      serverless(app, {
-        binary: (headers: Record<string, unknown>) => {
-          const type = String(headers["content-type"] ?? "");
-          return type !== "" && !/^(text\/|application\/(json|javascript|xml))/.test(type);
-        },
-      }) as unknown as LambdaHandler,
-  );
-  return handlerPromise;
-}
+const lambda = serverless(app, {
+  binary: (headers: Record<string, unknown>) => {
+    const type = String(headers["content-type"] ?? "");
+    return type !== "" && !/^(text\/|application\/(json|javascript|xml))/.test(type);
+  },
+}) as unknown as LambdaHandler;
 
 export default async function handler(req: Request, context: Context) {
   const url = new URL(req.url);
@@ -41,7 +32,7 @@ export default async function handler(req: Request, context: Context) {
   const multiQuery: Record<string, string[]> = {};
   for (const [key, value] of url.searchParams) (multiQuery[key] ??= []).push(value);
 
-  const result = await (await getHandler())(
+  const result = await lambda(
     {
       httpMethod: req.method,
       path: url.pathname,
