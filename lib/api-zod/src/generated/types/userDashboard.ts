@@ -5,6 +5,7 @@
  * API for Najammelha, a Kuwaiti community reporting platform
  * OpenAPI spec version: 0.1.0
  */
+import type { LevelInfo } from './levelInfo';
 import type { Notification } from './notification';
 import type { Report } from './report';
 
@@ -12,11 +13,14 @@ export interface UserDashboard {
   name: string;
   initials: string;
   points: number;
+  lifetimePoints: number;
   reportsCount: number;
   resolvedCount: number;
   contributionRate: number;
   level: string;
+  levelId: string;
   nextLevelPoints: number;
+  levels: LevelInfo[];
   reports: Report[];
   notifications: Notification[];
 }

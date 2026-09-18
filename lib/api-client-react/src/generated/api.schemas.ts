@@ -62,6 +62,15 @@ export const ReportStatus = {
   closed: 'closed',
 } as const;
 
+export type ReportAgencySource = typeof ReportAgencySource[keyof typeof ReportAgencySource] | null;
+
+
+export const ReportAgencySource = {
+  rules: 'rules',
+  ai: 'ai',
+  admin: 'admin',
+} as const;
+
 export interface Report {
   id: number;
   userId: string;
@@ -81,6 +90,14 @@ export interface Report {
   createdAt: string;
   updatedAt: string;
   isDemo: boolean;
+  /** True when the coordinates came from the reporter's device GPS. */
+  locationExact?: boolean;
+  agencyId?: string | null;
+  agencyName?: string | null;
+  /** Why the router suggested this agency (admin only). */
+  agencyReason?: string | null;
+  agencyConfidence?: number | null;
+  agencySource?: ReportAgencySource;
 }
 
 export interface ReportInput {
@@ -112,6 +129,7 @@ export interface ReportInput {
      * @maxLength 120
      */
   locationName: string;
+  locationExact?: boolean;
 }
 
 export type ReportUpdateStatus = typeof ReportUpdateStatus[keyof typeof ReportUpdateStatus];
@@ -129,6 +147,8 @@ export interface ReportUpdate {
   status?: ReportUpdateStatus;
   /** @minimum 0 */
   supportCount?: number;
+  /** Admin override of the suggested agency. */
+  agencyId?: string;
 }
 
 export interface PlatformStats {
@@ -136,6 +156,15 @@ export interface PlatformStats {
   resolvedReports: number;
   communityContributions: number;
   activeAreas: number;
+}
+
+export interface LevelInfo {
+  id: string;
+  name: string;
+  minPoints: number;
+  reportPoints: number;
+  resolvedBonus: number;
+  perks: string[];
 }
 
 export interface Notification {
@@ -150,11 +179,14 @@ export interface UserDashboard {
   name: string;
   initials: string;
   points: number;
+  lifetimePoints: number;
   reportsCount: number;
   resolvedCount: number;
   contributionRate: number;
   level: string;
+  levelId: string;
   nextLevelPoints: number;
+  levels: LevelInfo[];
   reports: Report[];
   notifications: Notification[];
 }

@@ -17,6 +17,11 @@ import {
 } from "@workspace/api-zod";
 import { db, categoriesTable, locationsTable, notificationsTable, pointsTable, reportsTable, usersTable } from "@workspace/db";
 import { hashPassword } from "../lib/auth";
+import { AGENCIES, getAgency, prepareReferral } from "../lib/agencies";
+import { routeReport, type RoutingImage } from "../lib/agency-router";
+import { levelFor } from "../lib/levels";
+import { getLifetimePoints } from "../lib/points";
+import { loadUpload, uploadKeyFromPath } from "../lib/uploads";
 
 const router: IRouter = Router();
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@najammelha.kw";
@@ -70,14 +75,53 @@ function ensureSeeded() {
   return seedPromise;
 }
 
-function toReport(report: typeof reportsTable.$inferSelect) {
-  return {
+type ReportRow = typeof reportsTable.$inferSelect;
+
+function isOwner(req: Request, report: ReportRow) {
+  return !!req.authUser && req.authUser.id === report.userId;
+}
+
+/** Only the admin, the reporter, or (once resolved) the public may see a report. */
+function canView(req: Request, report: ReportRow) {
+  return !!req.authUser?.isAdmin || isOwner(req, report) || report.status === "resolved";
+}
+
+/**
+ * Shapes a report for whoever is asking. Admins get everything (exact
+ * coordinates, author, AI agency reasoning); the reporter gets their own report
+ * without the routing internals; the public only ever gets resolved reports
+ * with the author, coordinates and agency stripped.
+ */
+function toReport(report: ReportRow, req: Request) {
+  const base = {
     ...report,
     statusLabel: statusLabels[report.status] ?? report.status,
     isDemo: report.isDemo,
     createdAt: report.createdAt.toISOString(),
     updatedAt: report.updatedAt.toISOString(),
   };
+  if (req.authUser?.isAdmin) return base;
+  if (isOwner(req, report)) return { ...base, agencyReason: null, agencyConfidence: null, agencySource: null };
+  return {
+    ...base,
+    userId: "",
+    authorName: undefined,
+    latitude: 0,
+    longitude: 0,
+    locationExact: false,
+    agencyId: null,
+    agencyName: null,
+    agencyReason: null,
+    agencyConfidence: null,
+    agencySource: null,
+  };
+}
+
+async function loadReportImage(objectPath: string): Promise<RoutingImage | null> {
+  const key = uploadKeyFromPath(objectPath);
+  if (!key) return null;
+  const upload = await loadUpload(key);
+  return upload ? { mediaType: upload.contentType, base64: upload.data.toString("base64") } : null;
 }
 
 router.get("/stats", async (_req, res) => {
@@ -115,8 +159,10 @@ router.get("/reports", async (req, res) => {
   if (category) clauses.push(eq(reportsTable.category, category));
   if (search) clauses.push(ilike(reportsTable.title, `%${search}%`));
   if (mine) clauses.push(eq(reportsTable.userId, getUserId(req)));
+  // Other people's reports are private: everyone but the admin only sees resolved ones.
+  else if (!req.authUser?.isAdmin) clauses.push(eq(reportsTable.status, "resolved"));
   const rows = await db.select().from(reportsTable).where(clauses.length ? and(...clauses) : undefined).orderBy(sort === "supported" ? desc(reportsTable.supportCount) : desc(reportsTable.createdAt));
-  res.json(ListReportsResponse.parse(rows.map(toReport)));
+  res.json(ListReportsResponse.parse(rows.map((row) => toReport(row, req))));
 });
 
 router.post("/reports", async (req, res) => {
@@ -131,19 +177,46 @@ router.post("/reports", async (req, res) => {
     return;
   }
   const category = await db.select().from(categoriesTable).where(eq(categoriesTable.id, parsed.data.category)).limit(1);
+  const level = levelFor(await getLifetimePoints(req.authUser.id));
+
+  // The AI looks at the photo + text and suggests the responsible agency. This
+  // only records a suggestion for the admin: nothing is sent to any agency.
+  let routing: Awaited<ReturnType<typeof routeReport>> | undefined;
+  try {
+    routing = await routeReport(
+      { title: parsed.data.title, description: parsed.data.description, category: parsed.data.category, locationName: parsed.data.locationName },
+      {
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        baseUrl: process.env.ANTHROPIC_BASE_URL,
+        model: process.env.AGENCY_AI_MODEL,
+        loadImage: () => loadReportImage(parsed.data.image),
+      },
+    );
+  } catch (error) {
+    req.log.error({ err: error }, "Agency routing failed; report will be created without a suggestion");
+  }
+  const agency = getAgency(routing?.agencyId);
+
   const [report] = await db.insert(reportsTable).values({
     ...parsed.data,
+    locationExact: parsed.data.locationExact ?? false,
     userId: req.authUser.id,
     authorName: req.authUser.name,
     categoryLabel: category[0]?.label ?? "أخرى",
     status: "received",
-    points: 10,
+    points: level.reportPoints,
     supportCount: 0,
     isDemo: false,
+    agencyId: agency?.id ?? null,
+    agencyName: agency?.name ?? null,
+    agencyReason: routing?.reason ?? null,
+    agencyConfidence: routing?.confidence ?? null,
+    agencySource: routing?.source ?? null,
   }).returning();
-  await db.insert(pointsTable).values({ userId: req.authUser.id, reportId: report.id, amount: 10, reason: "إرسال بلاغ صالح" });
-  await db.update(usersTable).set({ points: sql`${usersTable.points} + 10` }).where(eq(usersTable.id, req.authUser.id));
-  res.status(201).json(CreateReportResponse.parse(toReport(report)));
+  req.log.info({ reportId: report.id, agencyId: agency?.id ?? null, source: routing?.source ?? null, sent: false }, "Agency referral prepared (simulated, nothing was sent)");
+  await db.insert(pointsTable).values({ userId: req.authUser.id, reportId: report.id, amount: level.reportPoints, reason: "إرسال بلاغ صالح" });
+  await db.update(usersTable).set({ points: sql`${usersTable.points} + ${level.reportPoints}` }).where(eq(usersTable.id, req.authUser.id));
+  res.status(201).json(CreateReportResponse.parse(toReport(report, req)));
 });
 
 router.get("/reports/:id", async (req, res) => {
@@ -154,11 +227,11 @@ router.get("/reports/:id", async (req, res) => {
     return;
   }
   const [report] = await db.select().from(reportsTable).where(eq(reportsTable.id, parsed.data.id)).limit(1);
-  if (!report) {
+  if (!report || !canView(req, report)) {
     res.status(404).json({ error: "البلاغ غير موجود." });
     return;
   }
-  res.json(GetReportResponse.parse(toReport(report)));
+  res.json(GetReportResponse.parse(toReport(report, req)));
 });
 
 router.patch("/reports/:id", async (req, res) => {
@@ -178,20 +251,56 @@ router.patch("/reports/:id", async (req, res) => {
     res.status(404).json({ error: "البلاغ غير موجود." });
     return;
   }
-  const [report] = await db.update(reportsTable).set({ ...body.data, updatedAt: new Date() }).where(eq(reportsTable.id, params.data.id)).returning();
-  if (body.data.status && body.data.status !== before.status) {
+  const { agencyId, ...changes } = body.data;
+  const override = agencyId === undefined ? undefined : getAgency(agencyId);
+  if (agencyId !== undefined && !override) {
+    res.status(400).json({ error: "الجهة غير معروفة." });
+    return;
+  }
+  const [report] = await db.update(reportsTable).set({
+    ...changes,
+    ...(override ? { agencyId: override.id, agencyName: override.name, agencyReason: "حددتها الإدارة.", agencyConfidence: 1, agencySource: "admin" } : {}),
+    updatedAt: new Date(),
+  }).where(eq(reportsTable.id, params.data.id)).returning();
+  if (changes.status && changes.status !== before.status) {
     await db.insert(notificationsTable).values({
       userId: report.userId,
       title: "تم تحديث حالة بلاغك",
-      body: `بلاغك في منطقة ${report.locationName} انتقل إلى مرحلة ${statusLabels[report.status]}.`,
+      body: `بلاغك في منطقة ${report.locationName} انتقل إلى مرحلة ${statusLabels[report.status]}${report.status === "referred" && report.agencyName ? ` (${report.agencyName})` : ""}.`,
       read: false,
     });
-    if (body.data.status === "resolved") {
-      await db.insert(pointsTable).values({ userId: report.userId, reportId: report.id, amount: 20, reason: "تمت معالجة البلاغ" });
-      await db.update(usersTable).set({ points: sql`${usersTable.points} + 20` }).where(eq(usersTable.id, report.userId));
+    if (changes.status === "resolved") {
+      const bonus = levelFor(await getLifetimePoints(report.userId)).resolvedBonus;
+      await db.insert(pointsTable).values({ userId: report.userId, reportId: report.id, amount: bonus, reason: "تمت معالجة البلاغ" });
+      await db.update(usersTable).set({ points: sql`${usersTable.points} + ${bonus}` }).where(eq(usersTable.id, report.userId));
     }
   }
-  res.json(UpdateReportResponse.parse(toReport(report)));
+  res.json(UpdateReportResponse.parse(toReport(report, req)));
+});
+
+router.get("/agencies", (req, res) => {
+  if (!req.authUser?.isAdmin) {
+    res.status(403).json({ error: "هذه الصفحة مخصصة للإدارة." });
+    return;
+  }
+  res.json(AGENCIES.map(({ id, name }) => ({ id, name })));
+});
+
+// Admin-only preview of the message that would be sent to the suggested
+// agency. It is never sent: prepareReferral has no transport.
+router.get("/reports/:id/referral-preview", async (req, res) => {
+  if (!req.authUser?.isAdmin) {
+    res.status(403).json({ error: "هذه الصفحة مخصصة للإدارة." });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [report] = Number.isInteger(id) ? await db.select().from(reportsTable).where(eq(reportsTable.id, id)).limit(1) : [];
+  const draft = report?.agencyId ? prepareReferral(report, report.agencyId) : null;
+  if (!draft) {
+    res.status(404).json({ error: "لا توجد جهة مقترحة لهذا البلاغ." });
+    return;
+  }
+  res.json(draft);
 });
 
 router.delete("/reports/:id", async (req, res) => {
@@ -220,12 +329,13 @@ router.post("/reports/:id/support", async (req, res) => {
     res.status(400).json({ error: "البلاغ غير صالح." });
     return;
   }
-  const [report] = await db.update(reportsTable).set({ supportCount: sql`${reportsTable.supportCount} + 1`, updatedAt: new Date() }).where(eq(reportsTable.id, params.data.id)).returning();
+  // Only resolved reports are public, so only those can be supported.
+  const [report] = await db.update(reportsTable).set({ supportCount: sql`${reportsTable.supportCount} + 1`, updatedAt: new Date() }).where(and(eq(reportsTable.id, params.data.id), eq(reportsTable.status, "resolved"))).returning();
   if (!report) {
     res.status(404).json({ error: "البلاغ غير موجود." });
     return;
   }
-  res.json(SupportReportResponse.parse(toReport(report)));
+  res.json(SupportReportResponse.parse(toReport(report, req)));
 });
 
 export default router;

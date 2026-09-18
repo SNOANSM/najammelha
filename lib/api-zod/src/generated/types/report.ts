@@ -5,6 +5,7 @@
  * API for Najammelha, a Kuwaiti community reporting platform
  * OpenAPI spec version: 0.1.0
  */
+import type { ReportAgencySource } from './reportAgencySource';
 import type { ReportStatus } from './reportStatus';
 
 export interface Report {
@@ -26,4 +27,12 @@ export interface Report {
   createdAt: Date;
   updatedAt: Date;
   isDemo: boolean;
+  /** True when the coordinates came from the reporter's device GPS. */
+  locationExact?: boolean;
+  agencyId?: string | null;
+  agencyName?: string | null;
+  /** Why the router suggested this agency (admin only). */
+  agencyReason?: string | null;
+  agencyConfidence?: number | null;
+  agencySource?: ReportAgencySource;
 }

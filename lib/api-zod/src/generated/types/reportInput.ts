@@ -35,4 +35,5 @@ export interface ReportInput {
      * @maxLength 120
      */
   locationName: string;
+  locationExact?: boolean;
 }
