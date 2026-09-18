@@ -24,8 +24,10 @@ export async function saveUpload(key: string, buffer: Buffer, contentType: strin
 export async function loadUpload(key: string): Promise<{ data: Buffer; contentType: string } | null> {
   if (useNetlifyBlobs) {
     const result = await getUploadsStore().getWithMetadata(key, { type: "arrayBuffer" });
-    if (!result) return null;
-    return { data: Buffer.from(result.data as ArrayBuffer), contentType: (result.metadata.contentType as string) || "application/octet-stream" };
+    if (result) {
+      return { data: Buffer.from(result.data as ArrayBuffer), contentType: (result.metadata.contentType as string) || "application/octet-stream" };
+    }
+    // Not in Blobs: may be a photo migrated from the old database.
   }
   const [row] = await db.select().from(uploadsTable).where(eq(uploadsTable.id, key)).limit(1);
   if (!row) return null;
