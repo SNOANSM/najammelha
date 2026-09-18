@@ -139,7 +139,13 @@ export const ListReportsResponseItem = zod.object({
   "supportCount": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "isDemo": zod.boolean()
+  "isDemo": zod.boolean(),
+  "locationExact": zod.boolean().optional().describe('True when the coordinates came from the reporter\'s device GPS.'),
+  "agencyId": zod.string().nullish(),
+  "agencyName": zod.string().nullish(),
+  "agencyReason": zod.string().nullish().describe('Why the router suggested this agency (admin only).'),
+  "agencyConfidence": zod.number().nullish(),
+  "agencySource": zod.enum(['rules', 'ai', 'admin']).nullish()
 })
 export const ListReportsResponse = zod.array(ListReportsResponseItem)
 
@@ -172,7 +178,8 @@ export const CreateReportBody = zod.object({
   "category": zod.string(),
   "latitude": zod.number().min(createReportBodyLatitudeMin).max(createReportBodyLatitudeMax),
   "longitude": zod.number().min(createReportBodyLongitudeMin).max(createReportBodyLongitudeMax),
-  "locationName": zod.string().min(createReportBodyLocationNameMin).max(createReportBodyLocationNameMax)
+  "locationName": zod.string().min(createReportBodyLocationNameMin).max(createReportBodyLocationNameMax),
+  "locationExact": zod.boolean().optional()
 })
 
 export const CreateReportResponse = zod.object({
@@ -193,7 +200,13 @@ export const CreateReportResponse = zod.object({
   "supportCount": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "isDemo": zod.boolean()
+  "isDemo": zod.boolean(),
+  "locationExact": zod.boolean().optional().describe('True when the coordinates came from the reporter\'s device GPS.'),
+  "agencyId": zod.string().nullish(),
+  "agencyName": zod.string().nullish(),
+  "agencyReason": zod.string().nullish().describe('Why the router suggested this agency (admin only).'),
+  "agencyConfidence": zod.number().nullish(),
+  "agencySource": zod.enum(['rules', 'ai', 'admin']).nullish()
 })
 
 
@@ -222,7 +235,13 @@ export const GetReportResponse = zod.object({
   "supportCount": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "isDemo": zod.boolean()
+  "isDemo": zod.boolean(),
+  "locationExact": zod.boolean().optional().describe('True when the coordinates came from the reporter\'s device GPS.'),
+  "agencyId": zod.string().nullish(),
+  "agencyName": zod.string().nullish(),
+  "agencyReason": zod.string().nullish().describe('Why the router suggested this agency (admin only).'),
+  "agencyConfidence": zod.number().nullish(),
+  "agencySource": zod.enum(['rules', 'ai', 'admin']).nullish()
 })
 
 
@@ -239,7 +258,8 @@ export const updateReportBodySupportCountMin = 0;
 
 export const UpdateReportBody = zod.object({
   "status": zod.enum(['received', 'reviewing', 'referred', 'resolved', 'closed']).optional(),
-  "supportCount": zod.number().int().min(updateReportBodySupportCountMin).optional()
+  "supportCount": zod.number().int().min(updateReportBodySupportCountMin).optional(),
+  "agencyId": zod.string().optional().describe('Admin override of the suggested agency.')
 })
 
 export const UpdateReportResponse = zod.object({
@@ -260,8 +280,24 @@ export const UpdateReportResponse = zod.object({
   "supportCount": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "isDemo": zod.boolean()
+  "isDemo": zod.boolean(),
+  "locationExact": zod.boolean().optional().describe('True when the coordinates came from the reporter\'s device GPS.'),
+  "agencyId": zod.string().nullish(),
+  "agencyName": zod.string().nullish(),
+  "agencyReason": zod.string().nullish().describe('Why the router suggested this agency (admin only).'),
+  "agencyConfidence": zod.number().nullish(),
+  "agencySource": zod.enum(['rules', 'ai', 'admin']).nullish()
 })
+
+
+/**
+ * @summary Delete a report (admin)
+ */
+export const DeleteReportParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteReportResponse = zod.void()
 
 
 /**
@@ -289,7 +325,13 @@ export const SupportReportResponse = zod.object({
   "supportCount": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "isDemo": zod.boolean()
+  "isDemo": zod.boolean(),
+  "locationExact": zod.boolean().optional().describe('True when the coordinates came from the reporter\'s device GPS.'),
+  "agencyId": zod.string().nullish(),
+  "agencyName": zod.string().nullish(),
+  "agencyReason": zod.string().nullish().describe('Why the router suggested this agency (admin only).'),
+  "agencyConfidence": zod.number().nullish(),
+  "agencySource": zod.enum(['rules', 'ai', 'admin']).nullish()
 })
 
 
@@ -300,11 +342,21 @@ export const GetDashboardResponse = zod.object({
   "name": zod.string(),
   "initials": zod.string(),
   "points": zod.number().int(),
+  "lifetimePoints": zod.number().int(),
   "reportsCount": zod.number().int(),
   "resolvedCount": zod.number().int(),
   "contributionRate": zod.number().int(),
   "level": zod.string(),
+  "levelId": zod.string(),
   "nextLevelPoints": zod.number().int(),
+  "levels": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "minPoints": zod.number().int(),
+  "reportPoints": zod.number().int(),
+  "resolvedBonus": zod.number().int(),
+  "perks": zod.array(zod.string())
+})),
   "reports": zod.array(zod.object({
   "id": zod.number().int(),
   "userId": zod.string(),
@@ -323,7 +375,13 @@ export const GetDashboardResponse = zod.object({
   "supportCount": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "isDemo": zod.boolean()
+  "isDemo": zod.boolean(),
+  "locationExact": zod.boolean().optional().describe('True when the coordinates came from the reporter\'s device GPS.'),
+  "agencyId": zod.string().nullish(),
+  "agencyName": zod.string().nullish(),
+  "agencyReason": zod.string().nullish().describe('Why the router suggested this agency (admin only).'),
+  "agencyConfidence": zod.number().nullish(),
+  "agencySource": zod.enum(['rules', 'ai', 'admin']).nullish()
 })),
   "notifications": zod.array(zod.object({
   "id": zod.number().int(),

@@ -51,6 +51,10 @@ _Populate as you build — explicit user instructions worth remembering across s
 - Uploaded report images are private object paths and should be served through the API storage route.
 - The default development admin login is `admin@najammelha.kw` with password `Najammelha@2026`; set `ADMIN_EMAIL` and `ADMIN_PASSWORD` before public deployment.
 
+- Report privacy: only admins see all reports. Everyone else sees only resolved reports (author, coordinates and agency stripped); reporters see their own in the dashboard. Report photos follow the same rule in `routes/storage.ts`.
+- Agency routing (`lib/agencies.ts`, `lib/agency-router.ts`) only *suggests* a Kuwaiti agency for the admin; nothing is ever sent to an agency. Keyword rules always run; if `ANTHROPIC_API_KEY` is set (optional `AGENCY_AI_MODEL`), Claude also looks at the photo and its answer wins when confident. Offline tests: `npx tsx --test artifacts/api-server/src/lib/agencies.test.ts`.
+- Schema changes need a matching SQL file in `netlify/database/migrations/` as well as `lib/db/src/schema/najammelha.ts`.
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details

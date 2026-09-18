@@ -11,4 +11,6 @@ export interface ReportUpdate {
   status?: ReportUpdateStatus;
   /** @minimum 0 */
   supportCount?: number;
+  /** Admin override of the suggested agency. */
+  agencyId?: string;
 }

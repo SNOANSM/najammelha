@@ -227,6 +227,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Report"
+    delete:
+      operationId: deleteReport
+      tags: [reports]
+      summary: Delete a report (admin)
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      responses:
+        "204":
+          description: Report deleted
+        "403":
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /reports/{id}/support:
     post:
       operationId: supportReport
@@ -543,6 +564,20 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         isDemo: { type: boolean }
+        locationExact:
+          type: boolean
+          description: True when the coordinates came from the reporter's device GPS.
+        agencyId: { type: string, nullable: true }
+        agencyName: { type: string, nullable: true }
+        agencyReason:
+          type: string
+          nullable: true
+          description: Why the router suggested this agency (admin only).
+        agencyConfidence: { type: number, nullable: true }
+        agencySource:
+          type: string
+          nullable: true
+          enum: [rules, ai, admin]
     ReportInput:
       type: object
       required: [image, title, description, category, latitude, longitude, locationName]
@@ -554,6 +589,7 @@ components:
         latitude: { type: number, minimum: 28, maximum: 31 }
         longitude: { type: number, minimum: 46, maximum: 49 }
         locationName: { type: string, minLength: 2, maxLength: 120 }
+        locationExact: { type: boolean }
     ReportUpdate:
       type: object
       properties:
@@ -563,6 +599,9 @@ components:
         supportCount:
           type: integer
           minimum: 0
+        agencyId:
+          type: string
+          description: Admin override of the suggested agency.
     PlatformStats:
       type: object
       required: [totalReports, resolvedReports, communityContributions, activeAreas]
@@ -573,16 +612,22 @@ components:
         activeAreas: { type: integer }
     UserDashboard:
       type: object
-      required: [name, initials, points, reportsCount, resolvedCount, contributionRate, level, nextLevelPoints, reports, notifications]
+      required: [name, initials, points, lifetimePoints, reportsCount, resolvedCount, contributionRate, level, levelId, nextLevelPoints, levels, reports, notifications]
       properties:
         name: { type: string }
         initials: { type: string }
         points: { type: integer }
+        lifetimePoints: { type: integer }
         reportsCount: { type: integer }
         resolvedCount: { type: integer }
         contributionRate: { type: integer }
         level: { type: string }
+        levelId: { type: string }
         nextLevelPoints: { type: integer }
+        levels:
+          type: array
+          items:
+            $ref: "#/components/schemas/LevelInfo"
         reports:
           type: array
           items:
@@ -591,6 +636,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Notification"
+    LevelInfo:
+      type: object
+      required: [id, name, minPoints, reportPoints, resolvedBonus, perks]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        minPoints: { type: integer }
+        reportPoints: { type: integer }
+        resolvedBonus: { type: integer }
+        perks:
+          type: array
+          items: { type: string }
     Notification:
       type: object
       required: [id, title, body, createdAt, read]

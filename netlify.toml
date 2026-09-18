@@ -3,6 +3,11 @@
   publish = "artifacts/najammelha/dist/public"
   functions = "netlify/functions"
 
+# vite.config.ts requires these (they come from Replit's workflow elsewhere).
+[build.environment]
+  PORT = "3000"
+  BASE_PATH = "/"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"

@@ -31,6 +31,12 @@ export const reportsTable = pgTable("najammelha_reports", {
   latitude: real("latitude").notNull(),
   longitude: real("longitude").notNull(),
   locationName: text("location_name").notNull(),
+  locationExact: boolean("location_exact").notNull().default(false),
+  agencyId: text("agency_id"),
+  agencyName: text("agency_name"),
+  agencyReason: text("agency_reason"),
+  agencyConfidence: real("agency_confidence"),
+  agencySource: text("agency_source"),
   status: text("status").notNull().default("received"),
   points: integer("points").notNull().default(10),
   supportCount: integer("support_count").notNull().default(0),
@@ -94,6 +100,13 @@ export const redemptionsTable = pgTable("najammelha_redemptions", {
   rewardTitle: text("reward_title").notNull(),
   partnerName: text("partner_name").notNull(),
   discountLabel: text("discount_label").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const uploadsTable = pgTable("najammelha_uploads", {
+  id: text("id").primaryKey(),
+  contentType: text("content_type").notNull(),
+  data: text("data").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

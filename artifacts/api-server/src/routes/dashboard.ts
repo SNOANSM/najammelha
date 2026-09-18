@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { desc, eq } from "drizzle-orm";
 import { GetDashboardResponse, GetAdminOverviewResponse } from "@workspace/api-zod";
 import { db, notificationsTable, redemptionsTable, reportsTable, usersTable } from "@workspace/db";
+import { LEVELS, levelFor, nextLevelPoints } from "../lib/levels";
+import { getLifetimePoints } from "../lib/points";
 
 const router: IRouter = Router();
 const labels: Record<string, string> = {
@@ -16,6 +18,10 @@ function toReport(report: typeof reportsTable.$inferSelect) {
   return {
     ...report,
     statusLabel: labels[report.status] ?? report.status,
+    // The reporter sees which agency it went to, not the AI's internals.
+    agencyReason: null,
+    agencyConfidence: null,
+    agencySource: null,
     createdAt: report.createdAt.toISOString(),
     updatedAt: report.updatedAt.toISOString(),
   };
@@ -35,16 +41,20 @@ router.get("/dashboard", async (req, res) => {
   const reports = await db.select().from(reportsTable).where(eq(reportsTable.userId, userId)).orderBy(desc(reportsTable.createdAt));
   const notifications = await db.select().from(notificationsTable).where(eq(notificationsTable.userId, userId)).orderBy(desc(notificationsTable.createdAt));
   const points = user?.points ?? 0;
-  const level = points >= 1800 ? "صانع أثر" : points >= 1200 ? "مساهم مميز" : points >= 500 ? "مساهم نشط" : "مساهم جديد";
+  const lifetimePoints = await getLifetimePoints(userId);
+  const level = levelFor(lifetimePoints);
   res.json(GetDashboardResponse.parse({
     name: user?.name ?? "مستخدم نجمّلها",
     initials: (user?.name ?? "مستخدم").slice(0, 2),
     points,
+    lifetimePoints,
     reportsCount: reports.length,
     resolvedCount: reports.filter((report) => report.status === "resolved").length,
     contributionRate: reports.length ? Math.round((reports.filter((report) => report.status === "resolved").length / reports.length) * 100) : 0,
-    level,
-    nextLevelPoints: points >= 1800 ? 0 : points >= 1200 ? 1800 : 1200,
+    level: level.name,
+    levelId: level.id,
+    nextLevelPoints: nextLevelPoints(lifetimePoints),
+    levels: LEVELS,
     reports: reports.map(toReport),
     notifications: notifications.map((notification) => ({ ...notification, createdAt: notification.createdAt.toISOString() })),
   }));
